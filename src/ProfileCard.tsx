@@ -1,5 +1,6 @@
 // src/ProfileCard.tsx
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X, MessageCircle, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -17,6 +18,8 @@ type Props = {
   onDislike?: () => void;
   onMessage?: () => void;
   onLike?: () => void;
+  /** ако правиш списък от карти, може да подадеш уникален dockId за всяка; иначе последната карта “побеждава” */
+  dockId?: string;
 };
 
 export default function ProfileCard({
@@ -24,22 +27,11 @@ export default function ProfileCard({
   onDislike,
   onMessage,
   onLike,
+  dockId = "profile-action-dock",
 }: Props) {
   return (
-    /**
-     * КЛЮЧОВО: даваме висок z-index и на външния wrapper,
-     * за да не може следваща секция да го покрива.
-     * Също така остава относителен, за да се позиционират бутоните спрямо него.
-     */
-    <section
-      className="relative z-[60] [--btn:3.5rem] sm:[--btn:4rem]"
-      style={{
-        // място за бутоните + iOS safe-area
-        paddingBottom:
-          "max(calc(var(--btn) + 1.25rem), env(safe-area-inset-bottom))",
-      }}
-    >
-      {/* Картата със снимката и текста */}
+    // Самата карта остава нормална, без значение какво има около нея
+    <section className="relative">
       <div className="rounded-3xl overflow-hidden shadow-2xl bg-neutral-900/5">
         <img
           src={p.photo}
@@ -48,7 +40,7 @@ export default function ProfileCard({
           loading="lazy"
         />
 
-        {/* Информация върху снимката */}
+        {/* Текст върху картата */}
         <div className="absolute inset-x-0 bottom-0 p-6 text-white
                         bg-gradient-to-t from-black/70 via-black/20 to-transparent">
           <h3 className="text-2xl font-extrabold drop-shadow">
@@ -72,17 +64,8 @@ export default function ProfileCard({
         </div>
       </div>
 
-      {/* Мек ореол за контраст под бутоните (по-нисък z от самите бутони) */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-1 flex justify-center z-[61]">
-        <div className="h-14 w-[320px] blur-2xl rounded-full bg-black/10 dark:bg-black/20" />
-      </div>
-
-      {/**
-       * Бутоните – даваме им МНОГО висок z-index, за да са над следващи елементи.
-       * Ако някой родител има overflow:hidden, това пак би режело.
-       * В такъв случай махни overflow:hidden от родителя или огради картата в контейнер без overflow.
-       */}
-      <div className="absolute left-1/2 bottom-3 -translate-x-1/2 z-[999] flex items-center gap-5 pointer-events-auto">
+      {/* Фиксиран action dock – винаги отгоре, чрез портал */}
+      <ActionDock dockId={dockId}>
         <ActionBtn
           label="Откажи"
           onClick={onDislike}
@@ -106,10 +89,65 @@ export default function ProfileCard({
         >
           <Heart className="h-6 w-6" />
         </ActionBtn>
-      </div>
+      </ActionDock>
     </section>
   );
 }
+
+/* ---------- Dock чрез портал (fixed overlay) ---------- */
+
+function ActionDock({
+  children,
+  dockId = "profile-action-dock",
+}: {
+  children: React.ReactNode;
+  dockId?: string;
+}) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+
+  // Създаваме/вземаме един контейнер в <body>
+  useEffect(() => {
+    let el = document.getElementById(dockId) as HTMLDivElement | null;
+    let created = false;
+    if (!el) {
+      el = document.createElement("div");
+      el.id = dockId;
+      document.body.appendChild(el);
+      created = true;
+    }
+    hostRef.current = el;
+    return () => {
+      // по желание можеш да махаш el при unmount, но ако рендерираш много карти, по-добре да го оставиш
+      // if (created && el?.parentNode) el.parentNode.removeChild(el);
+    };
+  }, [dockId]);
+
+  if (!hostRef.current) return null;
+
+  // Рендерираме фиксиран док в дъното на екрана (над всичко)
+  return createPortal(
+    <div
+      className="
+        fixed left-1/2 -translate-x-1/2
+        bottom-[calc(0.75rem+env(safe-area-inset-bottom))]
+        z-[2147483647]   /* над всичко */
+        pointer-events-auto
+      "
+    >
+      {/* Мек ореол отдолу за контраст */}
+      <div className="pointer-events-none absolute -z-10 left-1/2 -translate-x-1/2 bottom-1">
+        <div className="h-14 w-[320px] blur-2xl rounded-full bg-black/10 dark:bg-black/20" />
+      </div>
+
+      <div className="flex items-center gap-5 [--btn:3.5rem] sm:[--btn:4rem]">
+        {children}
+      </div>
+    </div>,
+    hostRef.current
+  );
+}
+
+/* ---------- Унифициран бутон ---------- */
 
 function ActionBtn({
   children,
