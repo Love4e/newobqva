@@ -3,3 +3,5 @@
 @tailwind utilities;
 
 html,body,#root{height:100%}
+- <link rel="manifest" href="/manifest.webmanifest" />
++ <link rel="manifest" href="manifest.webmanifest" />
