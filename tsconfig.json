@@ -1,15 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "composite": true,
     "module": "ESNext",
-    "jsx": "react-jsx",
     "moduleResolution": "Bundler",
-    "strict": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "types": ["vite/client"],
-    "baseUrl": "."
+    "types": ["vite/client"]
   },
-  "include": ["src"]
+  "include": ["vite.config.ts"]
 }
