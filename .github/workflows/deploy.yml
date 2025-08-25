@@ -5,13 +5,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# Права за GitHub Pages деплой
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# само един деплой наведнъж
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -27,11 +25,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          # ! НЯМА cache: 'npm', за да не изисква lock файл
 
-      # Ако нямаш package-lock.json, 'npm ci' ще се провали -> ползваме install
       - name: Install deps
-        run: npm install
+        run: npm install --no-fund --no-audit
 
       - name: Build Vite
         run: npm run build
