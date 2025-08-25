@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages (diagnostic)
 
 on:
   push:
@@ -18,15 +18,45 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
-      - run: npm run build
+
+      - name: Show env
+        run: |
+          node -v
+          npm -v
+          echo "PWD: $(pwd)"
+          ls -la
+          echo "---- package.json ----"
+          cat package.json
+          echo "----------------------"
+
+      - name: Install deps
+        run: npm install
+
+      # понякога esbuild се чупи на Linux runners – това го оправя
+      - name: Rebuild esbuild (best-effort)
+        run: npm rebuild esbuild || true
+
+      - name: Print versions
+        run: |
+          npx vite --version || true
+          npx tailwindcss --help >/dev/null 2>&1 || true
+          npx tsc -v || true
+
+      - name: Build (debug)
+        run: npx vite build --debug --logLevel info
+
       - name: SPA fallback (copy index.html -> 404.html)
         run: cp dist/index.html dist/404.html
-      - uses: actions/upload-pages-artifact@v3
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
