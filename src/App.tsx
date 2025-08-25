@@ -5,18 +5,12 @@ import { createClient } from "@supabase/supabase-js";
 
 /* =====================================================
    LoveLink — 3D Mobile/Desktop MVP (Supabase + PWA)
-   =====================================================
-   1) .env: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (по желание).
-   2) Таблици в README / SQL.
-   3) PWA: public/sw.js + manifest.webmanifest.
-*/
+   ===================================================== */
 
-// Supabase setup
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://YOUR.supabase.co";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR-ANON-KEY";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Demo users (fallback)
 const DEMO_USERS = [
   { id:"u1", name:"Ива",   age:27, gender:"Жена", zodiac:"Везни",   city:"София",   interests:["йога","кино","планина"], bio:"Вярвам в добрия разговор и спонтанните пътувания.", photos:["https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1200&auto=format&fit=crop"], online:true },
   { id:"u2", name:"Алекс", age:31, gender:"Мъж",  zodiac:"Лъв",     city:"Пловдив", interests:["тех","фитнес","музика"],  bio:"Front-end ентусиаст и фен на пътуванията.",       photos:["https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop"], online:true },
@@ -24,11 +18,9 @@ const DEMO_USERS = [
   { id:"u4", name:"Дани",  age:29, gender:"Мъж",  zodiac:"Козирог", city:"София",   interests:["футбол","игри","кино"],   bio:"Шегите ми са по-добри на живо.",                    photos:["https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=1200&auto=format&fit=crop"], online:true },
 ];
 
-// Utils
 const cn  = (...c: (string|false|undefined)[])=> c.filter(Boolean).join(" ");
 const uid = ()=> (crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
 
-// --- Auth Gate ---------------------------------------------------------------
 function AuthGate({setMe}:{setMe:(v:any)=>void}){
   const [email,setEmail] = useState("");
   const [loading,setLoading] = useState(false);
@@ -67,7 +59,6 @@ function AuthGate({setMe}:{setMe:(v:any)=>void}){
   );
 }
 
-// --- Presence (optional) -----------------------------------------------------
 function usePresence(me:any){
   useEffect(()=>{
     if(!me?.id) return;
@@ -79,7 +70,6 @@ function usePresence(me:any){
   },[me?.id]);
 }
 
-// --- Swipe Card --------------------------------------------------------------
 function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>void; onNope:(u:any)=>void; onMessage:(u:any)=>void;}){
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-150, 0, 150], [-15, 0, 15]);
@@ -120,7 +110,6 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
   );
 }
 
-// --- Discover ---------------------------------------------------------------
 function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]; like:(u:any)=>void; nope:(u:any)=>void; message:(u:any)=>void; filters:any; setFilters:(f:any)=>void;}){
   const user = queue[0];
   return (
@@ -160,7 +149,6 @@ function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]
   );
 }
 
-// --- Global Chat -------------------------------------------------------------
 function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   const [text,setText] = useState("");
   const [messages,setMessages] = useState<any[]>([]);
@@ -184,7 +172,9 @@ function GlobalChat({roomId, me}:{roomId:string; me:any;}){
     const t = text.trim(); if(!t) return; setText("");
     const msg = { id: uid(), room_id: roomId, from_id: me.id, text: t, created_at: new Date().toISOString() };
     setMessages(prev=>[...prev, msg]);
-    await supabase.from('messages').insert(msg).catch(()=>{});
+    try {
+      await supabase.from('messages').insert(msg);
+    } catch { /* no-op */ }
   }
 
   return (
@@ -206,7 +196,6 @@ function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   );
 }
 
-// --- Direct Chat -------------------------------------------------------------
 function DirectChat({me, peer}:{me:any; peer:any;}){
   const roomId = useMemo(()=> [me.id, peer.id].sort().join('::'), [me.id, peer.id]);
   const [messages,setMessages] = useState<any[]>([]);
@@ -231,7 +220,9 @@ function DirectChat({me, peer}:{me:any; peer:any;}){
     const t=text.trim(); if(!t) return; setText("");
     const msg = { id: uid(), room_id: roomId, from_id: me.id, to_id: peer.id, text: t, created_at: new Date().toISOString() };
     setMessages(prev=>[...prev, msg]);
-    await supabase.from('messages').insert(msg).catch(()=>{});
+    try {
+      await supabase.from('messages').insert(msg);
+    } catch { /* no-op */ }
   }
 
   return (
@@ -253,7 +244,6 @@ function DirectChat({me, peer}:{me:any; peer:any;}){
   );
 }
 
-// --- Profile -----------------------------------------------------------------
 function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   const [flipped, setFlipped] = useState(false);
   const [bio, setBio] = useState(me.bio||"");
@@ -262,7 +252,9 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   async function save(){
     const updated = { ...me, bio, interests: interests.split(",").map(x=>x.trim()).filter(Boolean) };
     setMe(updated);
-    await supabase.from('profiles').upsert(updated).catch(()=>{});
+    try {
+      await supabase.from('profiles').upsert(updated);
+    } catch { /* no-op */ }
   }
   async function logout(){
     await supabase.auth.signOut();
@@ -307,7 +299,6 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   );
 }
 
-// --- Plans / Coins -----------------------------------------------------------
 function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)=>void; plan:string; setPlan:(p:string)=>void;}){
   const packs = [
     {amt:50,  price:"4.99 лв"},
@@ -325,7 +316,7 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
       const { data: userData } = await supabase.auth.getUser();
       const myId = userData?.user?.id || localStorage.getItem('ll_uid');
       if (myId) await supabase.from('coin_ledger').insert({ id: uid(), user_id: myId, delta: amt, reason: 'purchase' });
-    } catch {}
+    } catch { /* no-op */ }
     alert(`Добавени са ${amt} монети (демо).`);
   }
   return (
@@ -348,7 +339,7 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
       <div className="mt-6 grid gap-3 md:grid-cols-3">
         {subs.map(s=> (
           <div key={s.k} className={cn("p-4 rounded-2xl border bg-white shadow-sm", plan===s.k && "ring-2 ring-rose-400")}>
-            <div className="flex items-center gap-2"><Crown className="h-5 w-5 text-amber-500"/><div className="font-semibold">{s.k}</div><div className="ml-auto text-sm text-neutral-600">{s.period}</div></div>
+            <div className="flex items:center gap-2"><Crown className="h-5 w-5 text-amber-500"/><div className="font-semibold">{s.k}</div><div className="ml-auto text-sm text-neutral-600">{s.period}</div></div>
             <div className="mt-1 text-neutral-800">{s.price}</div>
             <ul className="mt-2 space-y-1 text-sm text-neutral-600 list-disc ml-5">{s.perks.map((p,i)=>(<li key={i}>{p}</li>))}</ul>
             <button onClick={()=>setPlan(s.k)} className="mt-3 w-full px-4 py-2 rounded-xl bg-rose-500 text-white">Избери</button>
@@ -359,7 +350,6 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
   );
 }
 
-// --- UI: Tab bars ------------------------------------------------------------
 function TabBar({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void; coins:number; plan:string;}){
   const tabs = [
     {k:"discover", label:"Открий", icon: Users},
@@ -407,7 +397,6 @@ function TopTabs({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void
   );
 }
 
-// --- App ---------------------------------------------------------------------
 export default function LoveLinkMVP(){
   const [tab, setTab] = useState("discover");
   const [me, setMe] = useState<any|null>(null);
@@ -417,14 +406,12 @@ export default function LoveLinkMVP(){
   const [queue,setQueue] = useState<any[]>([]);
   const [activePeer, setActivePeer] = useState<any|null>(null);
 
-  // PWA registration (работи в /lovelink-mvp/)
   useEffect(()=>{ 
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(()=>{});
     }
   },[]);
 
-  // Restore session (ако има Supabase)
   useEffect(()=>{
     (async()=>{
       const { data: { session } } = await supabase.auth.getSession();
@@ -439,7 +426,6 @@ export default function LoveLinkMVP(){
   useEffect(()=>{ if(plan) localStorage.setItem('ll_plan', plan); },[plan]);
   usePresence(me||{});
 
-  // Load queue (Supabase или DEMO)
   useEffect(()=>{
     (async()=>{
       const query = supabase.from('profiles').select('*').limit(50);
@@ -458,11 +444,10 @@ export default function LoveLinkMVP(){
     })();
   },[filters]);
 
-  // Actions
   async function like(u:any){
     setQueue(q=>q.slice(1));
-    if(me?.id){ await supabase.from('likes').insert({ id: uid(), from_id: me.id, to_id: u.id }).catch(()=>{}); }
-    if(me?.id){ const { data } = await supabase.from('likes').select('id').eq('from_id', u.id).eq('to_id', me.id).limit(1); if(data && data.length) alert(`It's a match! Ти и ${u.name} се харесахте.`); }
+    try { if(me?.id){ await supabase.from('likes').insert({ id: uid(), from_id: me.id, to_id: u.id }); } } catch {}
+    try { if(me?.id){ const { data } = await supabase.from('likes').select('id').eq('from_id', u.id).eq('to_id', me.id).limit(1); if(data && data.length) alert(`It's a match! Ти и ${u.name} се харесахте.`); } } catch {}
   }
   function nope(u:any){ setQueue(q=>q.slice(1)); }
   function message(u:any){ setTab('chat'); setActivePeer(u); }
