@@ -45,13 +45,16 @@ function ActionDock({
   if (!visible) return null;
   return (
     <div
-      className="
-        fixed left-1/2 -translate-x-1/2
-        bottom-[calc(0.75rem+env(safe-area-inset-bottom))]
-        z-[2147483647] pointer-events-auto
-      "
+      className={`
+        fixed left-1/2 -translate-x-1/2 pointer-events-auto
+        z-[2147483647]
+        /* Мобилни: вдигаме дока над таб бара (~88px) + 12px въздух + safe-area */
+        bottom-[calc(88px+env(safe-area-inset-bottom)+12px)]
+        /* Десктоп: ниско, близо до края */
+        md:bottom-[calc(12px+env(safe-area-inset-bottom))]
+      `}
     >
-      {/* мек ореол за контраст */}
+      {/* мек ореол */}
       <div className="pointer-events-none absolute -z-10 left-1/2 -translate-x-1/2 bottom-1">
         <div className="h-14 w-[320px] blur-2xl rounded-full bg-black/10 dark:bg-black/20" />
       </div>
@@ -60,11 +63,9 @@ function ActionDock({
         <DockBtn label="Откажи" className="bg-white text-gray-700 ring-1 ring-black/10" onClick={onDislike}>
           <X className="h-6 w-6" />
         </DockBtn>
-
         <DockBtn label="Съобщение" className="bg-amber-400 text-white ring-1 ring-black/10" onClick={onMessage}>
           <MessageCircle className="h-6 w-6" />
         </DockBtn>
-
         <DockBtn label="Харесай" className="bg-rose-500 text-white ring-1 ring-black/10" onClick={onLike}>
           <Heart className="h-6 w-6" />
         </DockBtn>
@@ -201,8 +202,6 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
       {/* Визуални етикети при drag */}
       <motion.div style={{ opacity: opacityRight }} className="absolute top-5 right-5 px-3 py-1.5 rounded-xl bg-emerald-500/90 text-white text-sm">LIKE</motion.div>
       <motion.div style={{ opacity: opacityLeft }} className="absolute top-5 left-5 px-3 py-1.5 rounded-xl bg-rose-500/90 text-white text-sm">NOPE</motion.div>
-
-      {/* ⛔️ Вече няма вътрешни бутони – използваме глобалния ActionDock */}
     </motion.div>
   );
 }
@@ -211,7 +210,7 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
 function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]; like:(u:any)=>void; nope:(u:any)=>void; message:(u:any)=>void; filters:any; setFilters:(f:any)=>void;}){
   const user = queue[0];
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pb-28 pt-4 px-4">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-4 pb-[180px] md:pb-28">
       <div className="sticky top-0 z-10 -mx-4 px-4 pb-3 bg-gradient-to-b from-white to-transparent">
         <div className="flex items-center gap-2">
           <div className="text-xl font-extrabold tracking-tight flex items-center gap-2"><Flame className="h-5 w-5 text-rose-500"/> LoveLink</div>
@@ -281,7 +280,7 @@ function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   }
 
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl=max-w-6xl mx-auto pt-4 pb-28 px-3">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
       <div className="text-xl font-bold">Обща чат стая</div>
       <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
         {messages.map((m:any)=> (
@@ -334,7 +333,7 @@ function DirectChat({me, peer}:{me:any; peer:any;}){
   }
 
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 pb-28 px-3">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
       <div className="flex items-center gap-2"><UserRound className="h-5 w-5"/><div className="text-xl font-bold">Чат с {peer.name}</div></div>
       <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
         {messages.map((m:any)=> (
@@ -370,7 +369,7 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   }
 
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 pb-28 px-4">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-4 pb-[180px] md:pb-28">
       <div className="flex items-center gap-2">
         <UserRound className="h-5 w-5"/><div className="text-xl font-bold">Моят профил</div>
         <button onClick={logout} className="ml-auto text-xs px-2 py-1 rounded-xl border flex items-center gap-1"><LogOut className="h-3.5 w-3.5"/> Изход</button>
@@ -389,17 +388,17 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
               </div>
             </div>
           </div>
-          <div className="absolute inset-0 bg-white p-4" style={{ transform:"rotateY(180deg)", backfaceVisibility:"hidden"}}>
-            <div className="text-sm text-neutral-500">Редакция</div>
-            <label className="block mt-2 text-xs text-neutral-500">Био</label>
-            <textarea value={bio} onChange={e=>setBio(e.target.value)} className="mt-1 w-full border rounded-xl p-3" rows={4}/>
-            <label className="block mt-3 text-xs text-neutral-500">Интереси (разделени със запетая)</label>
-            <input value={interests} onChange={e=>setInterests(e.target.value)} className="mt-1 w-full border rounded-xl p-3"/>
-            <div className="mt-4 flex gap-2">
-              <button onClick={()=>setFlipped(false)} className="px-4 py-2 rounded-xl border">Назад</button>
-              <button onClick={()=>{save(); setFlipped(false);}} className="px-4 py-2 rounded-xl bg-neutral-900 text-white">Запази</button>
+            <div className="absolute inset-0 bg-white p-4" style={{ transform:"rotateY(180deg)", backfaceVisibility:"hidden"}}>
+              <div className="text-sm text-neutral-500">Редакция</div>
+              <label className="block mt-2 text-xs text-neutral-500">Био</label>
+              <textarea value={bio} onChange={e=>setBio(e.target.value)} className="mt-1 w-full border rounded-xl p-3" rows={4}/>
+              <label className="block mt-3 text-xs text-neutral-500">Интереси (разделени със запетая)</label>
+              <input value={interests} onChange={e=>setInterests(e.target.value)} className="mt-1 w-full border rounded-xl p-3"/>
+              <div className="mt-4 flex gap-2">
+                <button onClick={()=>setFlipped(false)} className="px-4 py-2 rounded-xl border">Назад</button>
+                <button onClick={()=>{save(); setFlipped(false);}} className="px-4 py-2 rounded-xl bg-neutral-900 text-white">Запази</button>
+              </div>
             </div>
-          </div>
         </div>
         <div className="mt-3 flex items-center gap-2">
           <button onClick={()=>setFlipped(f=>!f)} className="flex-1 px-4 py-3 rounded-2xl border">{flipped?"Виж предната страна":"Редактирай"}</button>
@@ -434,7 +433,7 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
   }
 
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 pb-28 px-4">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-4 pb-[180px] md:pb-28">
       <div className="text-xl font-bold">Монети и абонаменти</div>
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         {packs.map(p=> (
@@ -602,7 +601,7 @@ export default function LoveLinkMVP(){
       {tab==="profile" && <Profile me={me} setMe={setMe}/>}
       {tab==="plans" && <Plans coins={coins} setCoins={setCoins as any} plan={plan} setPlan={setPlan}/>}
 
-      {/* Глобалният фикс-док – извън картите, винаги отгоре */}
+      {/* Глобалният фикс-док – извън картите, винаги над таб бара на мобилни */}
       <ActionDock
         visible={tab === "discover" && !!current}
         onDislike={() => current && nope(current)}
