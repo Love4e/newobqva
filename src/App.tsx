@@ -1,16 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useMotionValue, useTransform } from "framer-motion";
-import { Heart, X, MessageCircle, UserRound, Coins, Crown, Users, Flame, Star, ShieldCheck, Loader2, LogOut } from "lucide-react";
+import {
+  Heart, X, MessageCircle, UserRound, Coins, Crown, Users,
+  Flame, Star, ShieldCheck, Loader2, LogOut
+} from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
 /* =====================================================
    LoveLink — 3D Mobile/Desktop MVP (Supabase + PWA)
    ===================================================== */
 
+// Supabase (остави стойностите по подразбиране, ако нямаш .env)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://YOUR.supabase.co";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR-ANON-KEY";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Демо потребители (ако няма данни в Supabase)
 const DEMO_USERS = [
   { id:"u1", name:"Ива",   age:27, gender:"Жена", zodiac:"Везни",   city:"София",   interests:["йога","кино","планина"], bio:"Вярвам в добрия разговор и спонтанните пътувания.", photos:["https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1200&auto=format&fit=crop"], online:true },
   { id:"u2", name:"Алекс", age:31, gender:"Мъж",  zodiac:"Лъв",     city:"Пловдив", interests:["тех","фитнес","музика"],  bio:"Front-end ентусиаст и фен на пътуванията.",       photos:["https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop"], online:true },
@@ -18,9 +23,11 @@ const DEMO_USERS = [
   { id:"u4", name:"Дани",  age:29, gender:"Мъж",  zodiac:"Козирог", city:"София",   interests:["футбол","игри","кино"],   bio:"Шегите ми са по-добри на живо.",                    photos:["https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=1200&auto=format&fit=crop"], online:true },
 ];
 
+// Улесняващи
 const cn  = (...c: (string|false|undefined)[])=> c.filter(Boolean).join(" ");
 const uid = ()=> (crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
 
+// ---------- Auth ----------
 function AuthGate({setMe}:{setMe:(v:any)=>void}){
   const [email,setEmail] = useState("");
   const [loading,setLoading] = useState(false);
@@ -29,21 +36,35 @@ function AuthGate({setMe}:{setMe:(v:any)=>void}){
   async function signInEmail(){
     try{
       setLoading(true); setErr("");
-      const { error } = await supabase.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.href } });
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options:{ emailRedirectTo: window.location.href }
+      });
       if(error) throw error;
       alert("Изпратихме код/линк към имейла ти.");
     }catch(e:any){ setErr(e.message||String(e)); }
     finally{ setLoading(false); }
   }
+
   function continueGuest(){
-    const demo = { id: localStorage.getItem("ll_uid") || uid(), name: "Гост", age: 28, gender: "Мъж", zodiac:"Водолей", city:"София", interests:["музика","планина","технологии"], bio:"Готов за нови запознанства.", photos:["https://images.unsplash.com/photo-1544005314-2035b3c58b05?q=80&w=1200&auto=format&fit=crop"], online:true };
+    const demo = {
+      id: localStorage.getItem("ll_uid") || uid(),
+      name: "Гост", age: 28, gender: "Мъж", zodiac:"Водолей", city:"София",
+      interests:["музика","планина","технологии"],
+      bio:"Готов за нови запознанства.",
+      photos:["https://images.unsplash.com/photo-1544005314-2035b3c58b05?q=80&w=1200&auto=format&fit=crop"],
+      online:true
+    };
     localStorage.setItem("ll_uid", demo.id);
     setMe(demo);
   }
+
   return (
     <div className="min-h-[80vh] grid place-items-center p-6 bg-[radial-gradient(ellipse_at_top,_#ffe4ea,_#eef3ff)]">
       <div className="w-full max-w-sm bg-white/80 backdrop-blur border rounded-3xl p-5 shadow-xl">
-        <div className="flex items-center gap-2"><Star className="h-5 w-5 text-rose-500"/><div className="text-xl font-extrabold">LoveLink</div></div>
+        <div className="flex items-center gap-2">
+          <Star className="h-5 w-5 text-rose-500"/><div className="text-xl font-extrabold">LoveLink</div>
+        </div>
         <div className="mt-1 text-sm text-neutral-600">Вход/регистрация</div>
         <label className="block mt-4 text-xs text-neutral-500">Имейл</label>
         <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@email.com" className="mt-1 w-full border rounded-xl p-3"/>
@@ -59,6 +80,7 @@ function AuthGate({setMe}:{setMe:(v:any)=>void}){
   );
 }
 
+// Онлайн присъствие (по желание)
 function usePresence(me:any){
   useEffect(()=>{
     if(!me?.id) return;
@@ -70,11 +92,13 @@ function usePresence(me:any){
   },[me?.id]);
 }
 
+// ---------- Swipe Card ----------
 function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>void; onNope:(u:any)=>void; onMessage:(u:any)=>void;}){
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-150, 0, 150], [-15, 0, 15]);
   const opacityRight = useTransform(x, [50, 120], [0, 1]);
   const opacityLeft = useTransform(x, [-120, -50], [1, 0]);
+
   return (
     <motion.div
       className="relative h-[68vh] min-h-[440px] rounded-[28px] overflow-hidden shadow-2xl border bg-neutral-900"
@@ -97,7 +121,7 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
             <span key={idx} className="px-2 py-1 rounded-full text-xs bg-white/80 text-neutral-800">{i}</span>
           ))}
         </div>
-        <div className="mt-2 text-white/90 text-sm line-clamp-2 drop-shadow">{user.bio}</div>
+        <div className="mt-2 text-white/90 text-sm drop-shadow">{user.bio}</div>
       </div>
       <motion.div style={{ opacity: opacityRight }} className="absolute top-5 right-5 px-3 py-1.5 rounded-xl bg-emerald-500/90 text-white text-sm">LIKE</motion.div>
       <motion.div style={{ opacity: opacityLeft }} className="absolute top-5 left-5 px-3 py-1.5 rounded-xl bg-rose-500/90 text-white text-sm">NOPE</motion.div>
@@ -110,6 +134,7 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
   );
 }
 
+// ---------- Discover ----------
 function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]; like:(u:any)=>void; nope:(u:any)=>void; message:(u:any)=>void; filters:any; setFilters:(f:any)=>void;}){
   const user = queue[0];
   return (
@@ -149,6 +174,7 @@ function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]
   );
 }
 
+// ---------- Global Chat ----------
 function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   const [text,setText] = useState("");
   const [messages,setMessages] = useState<any[]>([]);
@@ -158,11 +184,17 @@ function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   useEffect(()=>{
     let stop=false;
     (async()=>{
-      const { data } = await supabase.from('messages').select('*').eq('room_id', roomId).order('created_at',{ascending:true}).limit(200);
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at',{ascending:true})
+        .limit(200);
       if(!stop && data) setMessages(data);
-      const ch = supabase.channel(`room:${roomId}`).on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` }, (payload:any)=>{
-        setMessages(prev=>[...prev, payload.new]);
-      });
+      const ch = supabase
+        .channel(`room:${roomId}`)
+        .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` },
+          (payload:any)=> setMessages(prev=>[...prev, payload.new]));
       ch.subscribe();
     })();
     return ()=>{ stop=true; supabase.removeAllChannels(); };
@@ -172,9 +204,7 @@ function GlobalChat({roomId, me}:{roomId:string; me:any;}){
     const t = text.trim(); if(!t) return; setText("");
     const msg = { id: uid(), room_id: roomId, from_id: me.id, text: t, created_at: new Date().toISOString() };
     setMessages(prev=>[...prev, msg]);
-    try {
-      await supabase.from('messages').insert(msg);
-    } catch { /* no-op */ }
+    try { await supabase.from('messages').insert(msg); } catch {}
   }
 
   return (
@@ -196,6 +226,7 @@ function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   );
 }
 
+// ---------- Direct Chat ----------
 function DirectChat({me, peer}:{me:any; peer:any;}){
   const roomId = useMemo(()=> [me.id, peer.id].sort().join('::'), [me.id, peer.id]);
   const [messages,setMessages] = useState<any[]>([]);
@@ -206,11 +237,17 @@ function DirectChat({me, peer}:{me:any; peer:any;}){
   useEffect(()=>{
     let stop=false;
     (async()=>{
-      const { data } = await supabase.from('messages').select('*').eq('room_id', roomId).order('created_at',{ascending:true}).limit(200);
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at',{ascending:true})
+        .limit(200);
       if(!stop && data) setMessages(data);
-      const ch = supabase.channel(`dm:${roomId}`).on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` }, (payload:any)=>{
-        setMessages(prev=>[...prev, payload.new]);
-      });
+      const ch = supabase
+        .channel(`dm:${roomId}`)
+        .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` },
+          (payload:any)=> setMessages(prev=>[...prev, payload.new]));
       ch.subscribe();
     })();
     return ()=>{ stop=true; supabase.removeAllChannels(); };
@@ -220,9 +257,7 @@ function DirectChat({me, peer}:{me:any; peer:any;}){
     const t=text.trim(); if(!t) return; setText("");
     const msg = { id: uid(), room_id: roomId, from_id: me.id, to_id: peer.id, text: t, created_at: new Date().toISOString() };
     setMessages(prev=>[...prev, msg]);
-    try {
-      await supabase.from('messages').insert(msg);
-    } catch { /* no-op */ }
+    try { await supabase.from('messages').insert(msg); } catch {}
   }
 
   return (
@@ -244,6 +279,7 @@ function DirectChat({me, peer}:{me:any; peer:any;}){
   );
 }
 
+// ---------- Profile ----------
 function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   const [flipped, setFlipped] = useState(false);
   const [bio, setBio] = useState(me.bio||"");
@@ -252,9 +288,7 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   async function save(){
     const updated = { ...me, bio, interests: interests.split(",").map(x=>x.trim()).filter(Boolean) };
     setMe(updated);
-    try {
-      await supabase.from('profiles').upsert(updated);
-    } catch { /* no-op */ }
+    try { await supabase.from('profiles').upsert(updated); } catch {}
   }
   async function logout(){
     await supabase.auth.signOut();
@@ -264,9 +298,13 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
 
   return (
     <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 pb-28 px-4">
-      <div className="flex items-center gap-2"><UserRound className="h-5 w-5"/><div className="text-xl font-bold">Моят профил</div><button onClick={logout} className="ml-auto text-xs px-2 py-1 rounded-xl border flex items-center gap-1"><LogOut className="h-3.5 w-3.5"/> Изход</button></div>
+      <div className="flex items-center gap-2">
+        <UserRound className="h-5 w-5"/><div className="text-xl font-bold">Моят профил</div>
+        <button onClick={logout} className="ml-auto text-xs px-2 py-1 rounded-xl border flex items-center gap-1"><LogOut className="h-3.5 w-3.5"/> Изход</button>
+      </div>
       <div className="mt-3" style={{perspective:"1200px"}}>
-        <div className="relative h-[56vh] min-h-[380px] rounded-[28px] border overflow-hidden shadow-xl" style={{ transformStyle:"preserve-3d", transform:`rotateY(${flipped?180:0}deg)`, transition:"transform 400ms" }}>
+        <div className="relative h-[56vh] min-h-[380px] rounded-[28px] border overflow-hidden shadow-xl"
+             style={{ transformStyle:"preserve-3d", transform:`rotateY(${flipped?180:0}deg)`, transition:"transform 400ms" }}>
           <div className="absolute inset-0" style={{ backfaceVisibility:"hidden"}}>
             <img src={me.photos?.[0]} className="absolute inset-0 w-full h-full object-cover"/>
             <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/70"/>
@@ -299,6 +337,7 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   );
 }
 
+// ---------- Plans ----------
 function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)=>void; plan:string; setPlan:(p:string)=>void;}){
   const packs = [
     {amt:50,  price:"4.99 лв"},
@@ -307,18 +346,20 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
   ];
   const subs = [
     {k:"Lite",    period:"дневен",   price:"2.49 лв/ден",     perks:["Без реклами","1 Boost","Ограничено 'кой ме хареса'"]},
-    {k:"Plus",    period:"седмичен", price:"9.99 лв/седмица", perks:["Без лимит DM към приятели","3 Boost-а","Пренавиване"]},
+    {k:"Plus",    period:"седмичен", price:"9.99 лв/седмица", perks:["Неогр. DM към приятели","3 Boost-а","Пренавиване"]},
     {k:"Premium", period:"месечен",  price:"24.99 лв/месец",  perks:["Всички харесали те","Анонимно разглеждане","Про филтри"]},
   ];
+
   async function addCoins(amt:number){
     setCoins((c:number)=> c + amt);
     try {
       const { data: userData } = await supabase.auth.getUser();
       const myId = userData?.user?.id || localStorage.getItem('ll_uid');
       if (myId) await supabase.from('coin_ledger').insert({ id: uid(), user_id: myId, delta: amt, reason: 'purchase' });
-    } catch { /* no-op */ }
+    } catch {}
     alert(`Добавени са ${amt} монети (демо).`);
   }
+
   return (
     <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 pb-28 px-4">
       <div className="text-xl font-bold">Монети и абонаменти</div>
@@ -339,7 +380,10 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
       <div className="mt-6 grid gap-3 md:grid-cols-3">
         {subs.map(s=> (
           <div key={s.k} className={cn("p-4 rounded-2xl border bg-white shadow-sm", plan===s.k && "ring-2 ring-rose-400")}>
-            <div className="flex items:center gap-2"><Crown className="h-5 w-5 text-amber-500"/><div className="font-semibold">{s.k}</div><div className="ml-auto text-sm text-neutral-600">{s.period}</div></div>
+            <div className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-amber-500"/><div className="font-semibold">{s.k}</div>
+              <div className="ml-auto text-sm text-neutral-600">{s.period}</div>
+            </div>
             <div className="mt-1 text-neutral-800">{s.price}</div>
             <ul className="mt-2 space-y-1 text-sm text-neutral-600 list-disc ml-5">{s.perks.map((p,i)=>(<li key={i}>{p}</li>))}</ul>
             <button onClick={()=>setPlan(s.k)} className="mt-3 w-full px-4 py-2 rounded-xl bg-rose-500 text-white">Избери</button>
@@ -350,6 +394,7 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
   );
 }
 
+// ---------- Навигация ----------
 function TabBar({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void; coins:number; plan:string;}){
   const tabs = [
     {k:"discover", label:"Открий", icon: Users},
@@ -362,8 +407,7 @@ function TabBar({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void;
       <div className="max-w-md mx-auto px-3 py-2 flex items-center gap-2">
         {tabs.map(t=>{ const Icon=t.icon; const active=tab===t.k; return (
           <button key={t.k} onClick={()=>setTab(t.k)} className={cn("flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl", active && "bg-neutral-900 text-white")}>
-            <Icon className="h-5 w-5"/>
-            <span className="text-[11px] leading-none">{t.label}</span>
+            <Icon className="h-5 w-5"/><span className="text-[11px] leading-none">{t.label}</span>
           </button>
         );})}
       </div>
@@ -397,6 +441,7 @@ function TopTabs({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void
   );
 }
 
+// ---------- Приложение ----------
 export default function LoveLinkMVP(){
   const [tab, setTab] = useState("discover");
   const [me, setMe] = useState<any|null>(null);
@@ -406,18 +451,26 @@ export default function LoveLinkMVP(){
   const [queue,setQueue] = useState<any[]>([]);
   const [activePeer, setActivePeer] = useState<any|null>(null);
 
+  // PWA регистрация – С НОВОТО ИМЕ ll-sw.js и правилен BASE_URL
   useEffect(()=>{ 
     if('serviceWorker' in navigator){
-      navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(()=>{});
+      navigator.serviceWorker
+        .register(import.meta.env.BASE_URL + 'll-sw.js')
+        .catch(()=>{});
     }
   },[]);
 
+  // Зареждане на сесия от Supabase, ако има
   useEffect(()=>{
     (async()=>{
       const { data: { session } } = await supabase.auth.getSession();
       if(session?.user){
         const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        setMe(data || { id: session.user.id, name: session.user.email?.split('@')[0] || 'Потребител', photos: DEMO_USERS[0].photos, age: 28, gender:'', zodiac:'', city:'', interests:[], bio:'' });
+        setMe(data || {
+          id: session.user.id,
+          name: session.user.email?.split('@')[0] || 'Потребител',
+          photos: DEMO_USERS[0].photos, age: 28, gender:'', zodiac:'', city:'', interests:[], bio:''
+        });
       }
     })();
   },[]);
@@ -426,6 +479,7 @@ export default function LoveLinkMVP(){
   useEffect(()=>{ if(plan) localStorage.setItem('ll_plan', plan); },[plan]);
   usePresence(me||{});
 
+  // Зареждане на профили (Supabase или DEMO)
   useEffect(()=>{
     (async()=>{
       const query = supabase.from('profiles').select('*').limit(50);
@@ -444,6 +498,7 @@ export default function LoveLinkMVP(){
     })();
   },[filters]);
 
+  // Действия
   async function like(u:any){
     setQueue(q=>q.slice(1));
     try { if(me?.id){ await supabase.from('likes').insert({ id: uid(), from_id: me.id, to_id: u.id }); } } catch {}
@@ -473,7 +528,9 @@ export default function LoveLinkMVP(){
 
       <TabBar tab={tab} setTab={setTab} coins={coins} plan={plan}/>
 
-      <footer className="mt-16 py-8 text-center text-xs text-neutral-500">© {new Date().getFullYear()} LoveLink · 3D Mobile/Desktop MVP · Supabase Ready · PWA-ready</footer>
+      <footer className="mt-16 py-8 text-center text-xs text-neutral-500">
+        © {new Date().getFullYear()} LoveLink · 3D Mobile/Desktop MVP · Supabase Ready · PWA-ready
+      </footer>
     </div>
   );
 }
