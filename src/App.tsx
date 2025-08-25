@@ -1,3 +1,4 @@
+// src/App.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import {
@@ -26,6 +27,79 @@ const DEMO_USERS = [
 // Улесняващи
 const cn  = (...c: (string|false|undefined)[])=> c.filter(Boolean).join(" ");
 const uid = ()=> (crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
+
+/* =============================
+   Глобален фикс-док с бутоните
+   ============================= */
+function ActionDock({
+  visible,
+  onDislike,
+  onMessage,
+  onLike,
+}: {
+  visible: boolean;
+  onDislike: () => void;
+  onMessage: () => void;
+  onLike: () => void;
+}) {
+  if (!visible) return null;
+  return (
+    <div
+      className="
+        fixed left-1/2 -translate-x-1/2
+        bottom-[calc(0.75rem+env(safe-area-inset-bottom))]
+        z-[2147483647] pointer-events-auto
+      "
+    >
+      {/* мек ореол за контраст */}
+      <div className="pointer-events-none absolute -z-10 left-1/2 -translate-x-1/2 bottom-1">
+        <div className="h-14 w-[320px] blur-2xl rounded-full bg-black/10 dark:bg-black/20" />
+      </div>
+
+      <div className="flex items-center gap-5 [--btn:3.5rem] sm:[--btn:4rem]">
+        <DockBtn label="Откажи" className="bg-white text-gray-700 ring-1 ring-black/10" onClick={onDislike}>
+          <X className="h-6 w-6" />
+        </DockBtn>
+
+        <DockBtn label="Съобщение" className="bg-amber-400 text-white ring-1 ring-black/10" onClick={onMessage}>
+          <MessageCircle className="h-6 w-6" />
+        </DockBtn>
+
+        <DockBtn label="Харесай" className="bg-rose-500 text-white ring-1 ring-black/10" onClick={onLike}>
+          <Heart className="h-6 w-6" />
+        </DockBtn>
+      </div>
+    </div>
+  );
+}
+function DockBtn({
+  children,
+  label,
+  className = "",
+  onClick,
+}: {
+  children: React.ReactNode;
+  label: string;
+  className?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <motion.button
+      type="button"
+      whileHover={{ y: -4, scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      className={`size-[var(--btn)] flex items-center justify-center rounded-full
+                  shadow-2xl focus:outline-none focus-visible:ring-4
+                  focus-visible:ring-white/60 focus-visible:ring-offset-2
+                  focus-visible:ring-offset-white/60 ${className}`}
+      aria-label={label}
+    >
+      <span className="sr-only">{label}</span>
+      {children}
+    </motion.button>
+  );
+}
 
 // ---------- Auth ----------
 function AuthGate({setMe}:{setMe:(v:any)=>void}){
@@ -123,13 +197,12 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
         </div>
         <div className="mt-2 text-white/90 text-sm drop-shadow">{user.bio}</div>
       </div>
+
+      {/* Визуални етикети при drag */}
       <motion.div style={{ opacity: opacityRight }} className="absolute top-5 right-5 px-3 py-1.5 rounded-xl bg-emerald-500/90 text-white text-sm">LIKE</motion.div>
       <motion.div style={{ opacity: opacityLeft }} className="absolute top-5 left-5 px-3 py-1.5 rounded-xl bg-rose-500/90 text-white text-sm">NOPE</motion.div>
-      <div className="absolute -bottom-6 left-0 right-0 flex items-center justify-center gap-4">
-        <button onClick={()=>onNope(user)} className="h-14 w-14 rounded-full bg-white shadow-xl border grid place-items-center active:scale-95"><X className="h-6 w-6"/></button>
-        <button onClick={()=>onMessage(user)} className="h-16 w-16 rounded-full bg-amber-400 text-white shadow-xl grid place-items-center active:scale-95"><MessageCircle className="h-7 w-7"/></button>
-        <button onClick={()=>onLike(user)} className="h-14 w-14 rounded-full bg-rose-500 text-white shadow-xl grid place-items-center active:scale-95"><Heart className="h-6 w-6"/></button>
-      </div>
+
+      {/* ⛔️ Вече няма вътрешни бутони – използваме глобалния ActionDock */}
     </motion.div>
   );
 }
@@ -208,7 +281,7 @@ function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   }
 
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 pb-28 px-3">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl=max-w-6xl mx-auto pt-4 pb-28 px-3">
       <div className="text-xl font-bold">Обща чат стая</div>
       <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
         {messages.map((m:any)=> (
@@ -451,7 +524,7 @@ export default function LoveLinkMVP(){
   const [queue,setQueue] = useState<any[]>([]);
   const [activePeer, setActivePeer] = useState<any|null>(null);
 
-  // PWA регистрация – С НОВОТО ИМЕ ll-sw.js и правилен BASE_URL
+  // PWA регистрация – с новото име ll-sw.js и правилен BASE_URL
   useEffect(()=>{ 
     if('serviceWorker' in navigator){
       navigator.serviceWorker
@@ -509,6 +582,9 @@ export default function LoveLinkMVP(){
 
   if(!me){ return <AuthGate setMe={setMe}/>; }
 
+  // Текущият профил (за ActionDock)
+  const current = queue[0];
+
   return (
     <div className="min-h-screen bg-[linear-gradient(135deg,#fff6f7,#eef3ff)] text-neutral-900">
       <div className="sticky top-0 z-30 bg-white/70 backdrop-blur border-b border-neutral-200">
@@ -525,6 +601,14 @@ export default function LoveLinkMVP(){
       {tab==="chat" && (activePeer? <DirectChat me={me} peer={activePeer}/> : <GlobalChat me={me} roomId="global"/> )}
       {tab==="profile" && <Profile me={me} setMe={setMe}/>}
       {tab==="plans" && <Plans coins={coins} setCoins={setCoins as any} plan={plan} setPlan={setPlan}/>}
+
+      {/* Глобалният фикс-док – извън картите, винаги отгоре */}
+      <ActionDock
+        visible={tab === "discover" && !!current}
+        onDislike={() => current && nope(current)}
+        onMessage={() => current && message(current)}
+        onLike={() => current && like(current)}
+      />
 
       <TabBar tab={tab} setTab={setTab} coins={coins} plan={plan}/>
 
