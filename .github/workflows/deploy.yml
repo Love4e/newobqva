@@ -22,7 +22,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          # няма cache, защото няма lock файл
       - run: npm install
       - run: npm run build
       - name: SPA fallback (copy index.html -> 404.html)
