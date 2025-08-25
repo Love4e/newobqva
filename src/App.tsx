@@ -6,10 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 /* =====================================================
    LoveLink — 3D Mobile/Desktop MVP (Supabase + PWA)
    =====================================================
-   Instructions:
-   1) Put your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.
-   2) Create tables (see README / SQL).
-   3) (Optional) public/sw.js is registered for PWA.
+   1) .env: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (по желание).
+   2) Таблици в README / SQL.
+   3) PWA: public/sw.js + manifest.webmanifest.
 */
 
 // Supabase setup
@@ -19,17 +18,17 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Demo users (fallback)
 const DEMO_USERS = [
-  { id:"u1", name:"Ива", age:27, gender:"Жена", zodiac:"Везни", city:"София", interests:["йога","кино","планина"], bio:"Вярвам в добрия разговор и спонтанните пътувания.", photos:["https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1200&auto=format&fit=crop"], online:true },
-  { id:"u2", name:"Алекс", age:31, gender:"Мъж", zodiac:"Лъв", city:"Пловдив", interests:["тех","фитнес","музика"], bio:"Front-end ентусиаст и фен на пътуванията.", photos:["https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop"], online:true },
-  { id:"u3", name:"Мария", age:22, gender:"Жена", zodiac:"Риби", city:"Варна", interests:["изкуство","книги","йога"], bio:"Морско момиче с голяма библиотека и любопитство.", photos:["https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1200&auto=format&fit=crop"], online:false },
-  { id:"u4", name:"Дани", age:29, gender:"Мъж", zodiac:"Козирог", city:"София", interests:["футбол","игри","кино"], bio:"Шегите ми са по-добри на живо.", photos:["https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=1200&auto=format&fit=crop"], online:true },
+  { id:"u1", name:"Ива",   age:27, gender:"Жена", zodiac:"Везни",   city:"София",   interests:["йога","кино","планина"], bio:"Вярвам в добрия разговор и спонтанните пътувания.", photos:["https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1200&auto=format&fit=crop"], online:true },
+  { id:"u2", name:"Алекс", age:31, gender:"Мъж",  zodiac:"Лъв",     city:"Пловдив", interests:["тех","фитнес","музика"],  bio:"Front-end ентусиаст и фен на пътуванията.",       photos:["https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop"], online:true },
+  { id:"u3", name:"Мария", age:22, gender:"Жена", zodiac:"Риби",    city:"Варна",   interests:["изкуство","книги","йога"], bio:"Морско момиче с голяма библиотека и любопитство.", photos:["https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1200&auto=format&fit=crop"], online:false },
+  { id:"u4", name:"Дани",  age:29, gender:"Мъж",  zodiac:"Козирог", city:"София",   interests:["футбол","игри","кино"],   bio:"Шегите ми са по-добри на живо.",                    photos:["https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=1200&auto=format&fit=crop"], online:true },
 ];
 
 // Utils
-const cn = (...c: (string|false|undefined)[])=> c.filter(Boolean).join(" ");
+const cn  = (...c: (string|false|undefined)[])=> c.filter(Boolean).join(" ");
 const uid = ()=> (crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
 
-// Auth Gate
+// --- Auth Gate ---------------------------------------------------------------
 function AuthGate({setMe}:{setMe:(v:any)=>void}){
   const [email,setEmail] = useState("");
   const [loading,setLoading] = useState(false);
@@ -68,7 +67,7 @@ function AuthGate({setMe}:{setMe:(v:any)=>void}){
   );
 }
 
-// Presence (optional)
+// --- Presence (optional) -----------------------------------------------------
 function usePresence(me:any){
   useEffect(()=>{
     if(!me?.id) return;
@@ -80,7 +79,7 @@ function usePresence(me:any){
   },[me?.id]);
 }
 
-// Swipe Card
+// --- Swipe Card --------------------------------------------------------------
 function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>void; onNope:(u:any)=>void; onMessage:(u:any)=>void;}){
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-150, 0, 150], [-15, 0, 15]);
@@ -92,9 +91,9 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
       style={{ x, rotate }}
       drag="x" dragConstraints={{ left:0, right:0 }} dragElastic={0.8}
       onDragEnd={(e, info)=>{
-        const threshold = 120;
-        if(info.offset.x > threshold) onLike(user);
-        else if(info.offset.x < -threshold) onNope(user);
+        const t = 120;
+        if(info.offset.x > t) onLike(user);
+        else if(info.offset.x < -t) onNope(user);
         else x.set(0);
       }}
     >
@@ -121,7 +120,7 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
   );
 }
 
-// Discover
+// --- Discover ---------------------------------------------------------------
 function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]; like:(u:any)=>void; nope:(u:any)=>void; message:(u:any)=>void; filters:any; setFilters:(f:any)=>void;}){
   const user = queue[0];
   return (
@@ -133,9 +132,7 @@ function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2 md:max-w-lg">
           <select className="px-3 py-2 rounded-xl border text-sm" value={filters.gender||""} onChange={e=>setFilters((f:any)=>({...f, gender:e.target.value}))}>
-            <option value="">Пол</option>
-            <option>Мъж</option>
-            <option>Жена</option>
+            <option value="">Пол</option><option>Мъж</option><option>Жена</option>
           </select>
           <input type="text" placeholder="Град" value={filters.city||""} onChange={e=>setFilters((f:any)=>({...f, city:e.target.value}))} className="px-3 py-2 rounded-xl border text-sm"/>
           <select className="px-3 py-2 rounded-xl border text-sm" value={filters.zodiac||""} onChange={e=>setFilters((f:any)=>({...f, zodiac:e.target.value}))}>
@@ -163,7 +160,7 @@ function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]
   );
 }
 
-// Global Chat
+// --- Global Chat -------------------------------------------------------------
 function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   const [text,setText] = useState("");
   const [messages,setMessages] = useState<any[]>([]);
@@ -209,7 +206,7 @@ function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   );
 }
 
-// Direct Chat
+// --- Direct Chat -------------------------------------------------------------
 function DirectChat({me, peer}:{me:any; peer:any;}){
   const roomId = useMemo(()=> [me.id, peer.id].sort().join('::'), [me.id, peer.id]);
   const [messages,setMessages] = useState<any[]>([]);
@@ -256,7 +253,7 @@ function DirectChat({me, peer}:{me:any; peer:any;}){
   );
 }
 
-// Profile
+// --- Profile -----------------------------------------------------------------
 function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   const [flipped, setFlipped] = useState(false);
   const [bio, setBio] = useState(me.bio||"");
@@ -310,26 +307,24 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   );
 }
 
-// Plans
+// --- Plans / Coins -----------------------------------------------------------
 function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)=>void; plan:string; setPlan:(p:string)=>void;}){
   const packs = [
-    {amt:50, price:"4.99 лв"},
+    {amt:50,  price:"4.99 лв"},
     {amt:100, price:"7.99 лв"},
     {amt:150, price:"10.99 лв"},
   ];
   const subs = [
-    {k:"Lite", period:"дневен", price:"2.49 лв/ден", perks:["Без реклами","1 Boost","Ограничено 'кой ме хареса'"]},
-    {k:"Plus", period:"седмичен", price:"9.99 лв/седмица", perks:["Без лимит DM към приятели","3 Boost-а","Пренавиване"]},
-    {k:"Premium", period:"месечен", price:"24.99 лв/месец", perks:["Всички харесали те","Анонимно разглеждане","Про филтри"]},
+    {k:"Lite",    period:"дневен",   price:"2.49 лв/ден",     perks:["Без реклами","1 Boost","Ограничено 'кой ме хареса'"]},
+    {k:"Plus",    period:"седмичен", price:"9.99 лв/седмица", perks:["Без лимит DM към приятели","3 Boost-а","Пренавиване"]},
+    {k:"Premium", period:"месечен",  price:"24.99 лв/месец",  perks:["Всички харесали те","Анонимно разглеждане","Про филтри"]},
   ];
   async function addCoins(amt:number){
     setCoins((c:number)=> c + amt);
     try {
       const { data: userData } = await supabase.auth.getUser();
       const myId = userData?.user?.id || localStorage.getItem('ll_uid');
-      if (myId) {
-        await supabase.from('coin_ledger').insert({ id: uid(), user_id: myId, delta: amt, reason: 'purchase' });
-      }
+      if (myId) await supabase.from('coin_ledger').insert({ id: uid(), user_id: myId, delta: amt, reason: 'purchase' });
     } catch {}
     alert(`Добавени са ${amt} монети (демо).`);
   }
@@ -364,13 +359,13 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
   );
 }
 
-// Bottom Tab (mobile)
+// --- UI: Tab bars ------------------------------------------------------------
 function TabBar({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void; coins:number; plan:string;}){
   const tabs = [
     {k:"discover", label:"Открий", icon: Users},
-    {k:"chat", label:"Чат", icon: MessageCircle},
-    {k:"profile", label:"Профил", icon: UserRound},
-    {k:"plans", label:"Планове", icon: Crown},
+    {k:"chat",     label:"Чат",    icon: MessageCircle},
+    {k:"profile",  label:"Профил", icon: UserRound},
+    {k:"plans",    label:"Планове",icon: Crown},
   ];
   return (
     <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/80 backdrop-blur border-t border-neutral-200">
@@ -390,13 +385,12 @@ function TabBar({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void;
   );
 }
 
-// Top Tabs (desktop)
 function TopTabs({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void; coins:number; plan:string;}){
   const tabs = [
     {k:"discover", label:"Открий"},
-    {k:"chat", label:"Чат"},
-    {k:"profile", label:"Профил"},
-    {k:"plans", label:"Планове"},
+    {k:"chat",     label:"Чат"},
+    {k:"profile",  label:"Профил"},
+    {k:"plans",    label:"Планове"},
   ];
   return (
     <div className="hidden md:block bg-white/70 backdrop-blur border-b border-neutral-200">
@@ -413,7 +407,7 @@ function TopTabs({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void
   );
 }
 
-// App
+// --- App ---------------------------------------------------------------------
 export default function LoveLinkMVP(){
   const [tab, setTab] = useState("discover");
   const [me, setMe] = useState<any|null>(null);
@@ -423,8 +417,14 @@ export default function LoveLinkMVP(){
   const [queue,setQueue] = useState<any[]>([]);
   const [activePeer, setActivePeer] = useState<any|null>(null);
 
-  useEffect(()=>{ if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{});} },[]);
+  // PWA registration (работи в /lovelink-mvp/)
+  useEffect(()=>{ 
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(()=>{});
+    }
+  },[]);
 
+  // Restore session (ако има Supabase)
   useEffect(()=>{
     (async()=>{
       const { data: { session } } = await supabase.auth.getSession();
@@ -439,22 +439,26 @@ export default function LoveLinkMVP(){
   useEffect(()=>{ if(plan) localStorage.setItem('ll_plan', plan); },[plan]);
   usePresence(me||{});
 
+  // Load queue (Supabase или DEMO)
   useEffect(()=>{
     (async()=>{
       const query = supabase.from('profiles').select('*').limit(50);
       if(filters.gender) (query as any).eq('gender', filters.gender);
-      if(filters.city) (query as any).ilike('city', `%${filters.city}%`);
+      if(filters.city)   (query as any).ilike('city', `%${filters.city}%`);
       if(filters.zodiac) (query as any).eq('zodiac', filters.zodiac);
       const { data } = await (query as any);
       if(data && data.length){ setQueue(data); }
       else {
         setQueue(DEMO_USERS.filter(u=> (
-          (!filters.gender || u.gender===filters.gender) && (!filters.city || u.city.toLowerCase().includes(String(filters.city).toLowerCase())) && (!filters.zodiac || u.zodiac===filters.zodiac)
+          (!filters.gender || u.gender===filters.gender) &&
+          (!filters.city || u.city.toLowerCase().includes(String(filters.city).toLowerCase())) &&
+          (!filters.zodiac || u.zodiac===filters.zodiac)
         )));
       }
     })();
   },[filters]);
 
+  // Actions
   async function like(u:any){
     setQueue(q=>q.slice(1));
     if(me?.id){ await supabase.from('likes').insert({ id: uid(), from_id: me.id, to_id: u.id }).catch(()=>{}); }
@@ -478,7 +482,7 @@ export default function LoveLinkMVP(){
       <TopTabs tab={tab} setTab={setTab} coins={coins} plan={plan} />
 
       {tab==="discover" && <Discover queue={queue} like={like} nope={nope} message={message} filters={filters} setFilters={setFilters}/>}
-      {tab==="chat" && (activePeer? <DirectChat me={me} peer={activePeer}/> : <GlobalChat me={me} roomId="global"/>)}
+      {tab==="chat" && (activePeer? <DirectChat me={me} peer={activePeer}/> : <GlobalChat me={me} roomId="global"/> )}
       {tab==="profile" && <Profile me={me} setMe={setMe}/>}
       {tab==="plans" && <Plans coins={coins} setCoins={setCoins as any} plan={plan} setPlan={setPlan}/>}
 
