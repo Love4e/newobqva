@@ -1,7 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-html,body,#root{height:100%}
-- <link rel="manifest" href="/manifest.webmanifest" />
-+ <link rel="manifest" href="manifest.webmanifest" />
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- относителен път за GitHub Pages -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <title>LoveLink MVP</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- относителен път, за да работи в /lovelink-mvp/ -->
+    <script type="module" src="src/main.tsx"></script>
+  </body>
+</html>
