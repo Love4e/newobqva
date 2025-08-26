@@ -1,146 +1,104 @@
+// src/components/ProfileForm.tsx
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../supabase';
+import type { Profile } from '../types';
 
-type Props = {
-  supabase: ReturnType<typeof createClient>;
-};
+const zodiacs = ['Овен','Телец','Близнаци','Рак','Лъв','Дева','Везни','Скорпион','Стрелец','Козирог','Водолей','Риби'];
 
-type Profile = {
-  id: string;
-  display_name: string | null;
-  bio: string | null;
-  avatar_url: string | null;
-};
-
-export default function ProfileForm({ supabase }: Props) {
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+export default function ProfileForm() {
+  const [p, setP] = useState<Profile | null>(null);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, display_name, bio, avatar_url')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (!error && data) setProfile(data as Profile);
-      setLoading(false);
-    })();
-  }, [supabase]);
+  useEffect(() => { load(); }, []);
 
-  const uploadAvatar = async (userId: string) => {
-    if (!file) return profile?.avatar_url || null;
-    const ext = file.name.split('.').pop();
-    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-    const { error: upErr } = await supabase.storage
-      .from('avatars')
-      .upload(path, file, { upsert: true });
-    if (upErr) throw upErr;
+  async function load() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if(!user) return;
 
-    const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
-    return pub?.publicUrl ?? null;
-  };
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (error) { console.warn(error); return; }
+    setP(data as Profile);
+  }
 
-  const onSave = async () => {
-    if (!profile) return;
+  async function save() {
+    if(!p) return;
     setSaving(true);
-    setMsg(null);
     try {
-      const avatar_url = await uploadAvatar(profile.id);
-      const { error } = await supabase.from('profiles').upsert(
-        {
-          id: profile.id,
-          display_name: profile.display_name?.trim() || null,
-          bio: profile.bio?.trim() || null,
-          avatar_url,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' }
-      );
+      let avatar_url = p.avatar_url;
+
+      if (file) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const path = `${user.id}/${Date.now()}-${file.name}`;
+        const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+        if (upErr) throw upErr;
+
+        const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+        avatar_url = data.publicUrl;
+      }
+
+      const update = { ...p, avatar_url };
+      const { error } = await supabase.from('profiles').upsert(update);
       if (error) throw error;
-      setMsg('Запазено!');
-    } catch (e: any) {
-      setMsg(e.message ?? 'Грешка при запазване.');
+
+      await load();
+      alert('Профилът е запазен!');
+    } catch (e:any) {
+      alert('Грешка: ' + e.message);
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  if (loading) {
-    return <div className="text-center text-sm text-slate-500">Зареждане…</div>;
-  }
-  if (!profile) {
-    return <div className="text-center text-slate-500">Няма профил.</div>;
-  }
+  if(!p) return <p className="opacity-60">Зареждане…</p>;
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <div className="bg-white/60 backdrop-blur rounded-2xl shadow p-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <img
-            src={profile.avatar_url || 'https://placehold.co/120x120?text=Avatar'}
-            alt="avatar"
-            className="w-24 h-24 rounded-full object-cover ring-2 ring-white/70"
-          />
-          <div>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="block text-sm"
-            />
-            <p className="text-xs text-slate-500">PNG/JPG до ~5MB</p>
-          </div>
+    <div className="max-w-3xl mx-auto bg-white rounded-2xl p-6 shadow">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input label="Име" value={p.display_name ?? ''} onChange={v=>setP({...p, display_name:v})}/>
+        <Select label="Пол" value={p.gender ?? ''} onChange={v=>setP({...p, gender: v as any})}
+                options={['мъж','жена','друго']} />
+        <Input label="Град" value={p.city ?? ''} onChange={v=>setP({...p, city:v})}/>
+        <Select label="Зодия" value={p.zodiac ?? ''} onChange={v=>setP({...p, zodiac: v})}
+                options={zodiacs}/>
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium mb-1">За мен</label>
+          <textarea className="w-full rounded-lg border p-2" rows={3}
+                    value={p.bio ?? ''} onChange={e=>setP({...p, bio:e.target.value})}/>
         </div>
-
-        <div className="grid gap-4">
-          <label className="grid gap-1">
-            <span className="text-sm text-slate-700">Име за показване</span>
-            <input
-              value={profile.display_name || ''}
-              onChange={(e) =>
-                setProfile((p) => (p ? { ...p, display_name: e.target.value } : p))
-              }
-              className="rounded-xl border border-slate-200 px-4 py-2"
-              placeholder="Angel Uzunov"
-            />
-          </label>
-
-          <label className="grid gap-1">
-            <span className="text-sm text-slate-700">Кратко био</span>
-            <textarea
-              value={profile.bio || ''}
-              onChange={(e) =>
-                setProfile((p) => (p ? { ...p, bio: e.target.value } : p))
-              }
-              rows={4}
-              className="rounded-xl border border-slate-200 px-4 py-2"
-              placeholder="Front-end ентусиаст и фен на пътуванията."
-            />
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-slate-500">{msg}</div>
-          <button
-            onClick={onSave}
-            disabled={saving}
-            className="px-5 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 disabled:opacity-50"
-          >
-            {saving ? 'Запазване…' : 'Запази'}
-          </button>
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium mb-1">Снимка (аватар)</label>
+          <input type="file" accept="image/*" onChange={e=>setFile(e.target.files?.[0] ?? null)}/>
+          {p.avatar_url && <img src={p.avatar_url} className="mt-3 h-28 rounded-lg object-cover" />}
         </div>
       </div>
+
+      <button onClick={save} disabled={saving}
+              className="mt-4 rounded-lg px-4 py-2 bg-neutral-900 text-white hover:opacity-90 disabled:opacity-50">
+        {saving ? 'Запис…' : 'Запази'}
+      </button>
+    </div>
+  );
+}
+
+function Input({label,value,onChange}:{label:string;value:string;onChange:(v:string)=>void}){
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1">{label}</label>
+      <input className="w-full rounded-lg border p-2" value={value} onChange={e=>onChange(e.target.value)} />
+    </div>
+  );
+}
+function Select({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[];}){
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1">{label}</label>
+      <select className="w-full rounded-lg border p-2" value={value} onChange={e=>onChange(e.target.value)}>
+        <option value="">—</option>
+        {options.map(o=><option key={o} value={o}>{o}</option>)}
+      </select>
     </div>
   );
 }
