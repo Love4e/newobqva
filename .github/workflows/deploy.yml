@@ -21,16 +21,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Без cache, за да не изисква lock файл
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci || npm i
+        run: npm install --no-audit --no-fund
 
-      # ВАЖНО: добавяме Supabase ключовете като env за билд стъпката
       - name: Build Vite
         env:
           VITE_SUPABASE_URL: https://gazaegcwedqiyaefkgsr.supabase.co
