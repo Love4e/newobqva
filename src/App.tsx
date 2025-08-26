@@ -1,9 +1,9 @@
 // src/App.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useTransform } from "framer-motion";
 import {
-  Heart, X, MessageCircle, UserRound, Coins, Crown, Users,
-  Flame, Star, ShieldCheck, Loader2, LogOut
+  Heart, X, MessageCircle, UserRound, Coins, Crown,
+  Flame, Star, ShieldCheck, Loader2, LogOut, Camera
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -27,6 +27,7 @@ const DEMO_USERS = [
 // Улесняващи
 const cn  = (...c: (string|false|undefined)[])=> c.filter(Boolean).join(" ");
 const uid = ()=> (crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
+const FALLBACK_AVATAR = "https://images.unsplash.com/photo-1544005314-2035b3c58b05?q=80&w=1200&auto=format&fit=crop";
 
 /* =============================
    Глобален фикс-док с бутоните
@@ -102,59 +103,54 @@ function DockBtn({
   );
 }
 
-/* ---------- Auth: САМО Google ---------- */
+// ---------- Auth ----------
 function AuthGate({setMe}:{setMe:(v:any)=>void}){
+  const [email,setEmail] = useState("");
   const [loading,setLoading] = useState(false);
   const [err,setErr] = useState("");
 
-  async function signInWithGoogle(){
+  async function signInEmail(){
     try{
       setLoading(true); setErr("");
-      const redirectTo = `${location.origin}${import.meta.env.BASE_URL}`;
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          queryParams: { access_type: "offline", prompt: "consent" },
-        },
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options:{ emailRedirectTo: window.location.href }
       });
-      if (error) throw error;
-      // ще бъдем пренасочени; ако не – нищо, ще хване useEffect за сесията
-    }catch(e:any){
-      setErr(e?.message || "Възникна проблем при Google входа.");
-      setLoading(false);
-    }
+      if(error) throw error;
+      alert("Изпратихме код/линк към имейла ти.");
+    }catch(e:any){ setErr(e.message||String(e)); }
+    finally{ setLoading(false); }
+  }
+
+  function continueGuest(){
+    const demo = {
+      id: localStorage.getItem("ll_uid") || uid(),
+      name: "Гост", age: 28, gender: "Мъж", zodiac:"Водолей", city:"София",
+      interests:["музика","планина","технологии"],
+      bio:"Готов за нови запознанства.",
+      photos:[FALLBACK_AVATAR],
+      online:true
+    };
+    localStorage.setItem("ll_uid", demo.id);
+    setMe(demo);
   }
 
   return (
     <div className="min-h-[80vh] grid place-items-center p-6 bg-[radial-gradient(ellipse_at_top,_#ffe4ea,_#eef3ff)]">
-      <div className="w-full max-w-sm bg-white/80 backdrop-blur border rounded-3xl p-6 shadow-xl">
+      <div className="w-full max-w-sm bg-white/80 backdrop-blur border rounded-3xl p-5 shadow-xl">
         <div className="flex items-center gap-2">
           <Star className="h-5 w-5 text-rose-500"/><div className="text-xl font-extrabold">LoveLink</div>
         </div>
-        <div className="mt-1 text-sm text-neutral-600">Вход</div>
-
-        <button
-          onClick={signInWithGoogle}
-          disabled={loading}
-          className="mt-5 w-full px-4 py-3 rounded-2xl bg-[#1a73e8] text-white flex items-center justify-center gap-3 shadow-lg hover:brightness-105 disabled:opacity-60"
-        >
-          {loading ? <Loader2 className="h-5 w-5 animate-spin"/> : (
-            /* малко G-иконка */
-            <svg viewBox="0 0 48 48" className="h-5 w-5">
-              <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.8 32.4 29.3 36 24 36 16.8 36 11 30.2 11 23s5.8-13 13-13c3.3 0 6.3 1.3 8.5 3.5l5.7-5.7C34.9 4.3 29.7 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11.3 0 21-8.2 21-22 0-1.5-.2-3-.4-4.5z"/>
-              <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16.5 18.9 13 24 13c3.3 0 6.3 1.3 8.5 3.5l5.7-5.7C34.9 4.3 29.7 2 24 2 15.4 2 8.1 6.9 6.3 14.7z"/>
-              <path fill="#4CAF50" d="M24 46c5.2 0 10-1.9 13.6-5.1l-6.3-5.2C29.2 37.5 26.7 38 24 38c-5.2 0-9.7-3.3-11.3-7.9l-6.6 5.1C8 41 15.4 46 24 46z"/>
-              <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.4 4.1-5.3 7-10.3 7-5.2 0-9.7-3.3-11.3-7.9l-6.6 5.1C8 41 15.4 46 24 46c11.3 0 21-8.2 21-22 0-1.5-.2-3-.4-4.5z"/>
-            </svg>
-          )}
-          Вход с Google
+        <div className="mt-1 text-sm text-neutral-600">Вход/регистрация</div>
+        <label className="block mt-4 text-xs text-neutral-500">Имейл</label>
+        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@email.com" className="mt-1 w-full border rounded-xl p-3"/>
+        <button onClick={signInEmail} disabled={loading} className="mt-3 w-full px-4 py-3 rounded-2xl bg-neutral-900 text-white flex items-center justify-center gap-2">
+          {loading && <Loader2 className="h-4 w-4 animate-spin"/>} Получи код на имейл
         </button>
-
+        <div className="mt-3 text-xs text-neutral-500">или</div>
+        <button onClick={continueGuest} className="mt-2 w-full px-4 py-3 rounded-2xl border">Продължи като гост</button>
         {err && <div className="mt-3 text-sm text-rose-600">{err}</div>}
-        <div className="mt-4 text-xs text-neutral-500 flex items-center gap-1">
-          <ShieldCheck className="h-4 w-4"/> Защитено от Supabase Auth
-        </div>
+        <div className="mt-4 text-xs text-neutral-500 flex items-center gap-1"><ShieldCheck className="h-4 w-4"/> Защитено от Supabase Auth</div>
       </div>
     </div>
   );
@@ -172,8 +168,7 @@ function usePresence(me:any){
   },[me?.id]);
 }
 
-/* ---------- Swipe Card ---------- */
-import { useMotionValue, useTransform } from "framer-motion";
+// ---------- Swipe Card ----------
 function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>void; onNope:(u:any)=>void; onMessage:(u:any)=>void;}){
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-150, 0, 150], [-15, 0, 15]);
@@ -194,6 +189,7 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
     >
       <img src={user.photos?.[0]} alt={user.name} className="absolute inset-0 w-full h-full object-cover"/>
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/5 to-black/60"/>
+      <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs">{user.city} · {user.zodiac}</div>
       <div className="absolute bottom-0 w-full p-4">
         <div className="text-white text-2xl font-extrabold drop-shadow">{user.name}, {user.age}</div>
         <div className="mt-2 flex flex-wrap gap-1">
@@ -211,7 +207,7 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
   );
 }
 
-/* ---------- Discover ---------- */
+// ---------- Discover ----------
 function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]; like:(u:any)=>void; nope:(u:any)=>void; message:(u:any)=>void; filters:any; setFilters:(f:any)=>void;}){
   const user = queue[0];
   return (
@@ -251,7 +247,7 @@ function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]
   );
 }
 
-/* ---------- Global Chat ---------- */
+// ---------- Global Chat ----------
 function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   const [text,setText] = useState("");
   const [messages,setMessages] = useState<any[]>([]);
@@ -303,7 +299,7 @@ function GlobalChat({roomId, me}:{roomId:string; me:any;}){
   );
 }
 
-/* ---------- Direct Chat ---------- */
+// ---------- Direct Chat ----------
 function DirectChat({me, peer}:{me:any; peer:any;}){
   const roomId = useMemo(()=> [me.id, peer.id].sort().join('::'), [me.id, peer.id]);
   const [messages,setMessages] = useState<any[]>([]);
@@ -356,17 +352,104 @@ function DirectChat({me, peer}:{me:any; peer:any;}){
   );
 }
 
-/* ---------- Profile ---------- */
+/* ===========================================
+   Profile (пълен редактор + качване на снимка)
+   =========================================== */
 function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   const [flipped, setFlipped] = useState(false);
-  const [bio, setBio] = useState(me.bio||"");
+
+  // формови стойности
+  const [name, setName]       = useState(me.name || "");
+  const [age, setAge]         = useState<number>(Number(me.age || 0));
+  const [gender, setGender]   = useState(me.gender || "");
+  const [zodiac, setZodiac]   = useState(me.zodiac || "");
+  const [city, setCity]       = useState(me.city || "");
+  const [bio, setBio]         = useState(me.bio || "");
   const [interests, setInterests] = useState((me.interests||[]).join(", "));
+  const [avatar, setAvatar]   = useState<string>(me.photos?.[0] || FALLBACK_AVATAR);
+  const [saving, setSaving]   = useState(false);
+  const [err, setErr]         = useState("");
+
+  const fileInput = useRef<HTMLInputElement|null>(null);
+
+  // Качване в Supabase Storage; пробва "avatars", после "public"
+  async function uploadAvatar(file: File): Promise<string> {
+    const buckets = ["avatars","public"];
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    for (const b of buckets) {
+      try {
+        const path = `${me.id}/${Date.now()}.${ext}`;
+        const { error } = await supabase.storage.from(b).upload(path, file, {
+          upsert: true,
+          contentType: file.type || "image/jpeg",
+        });
+        if (!error) {
+          const { data } = supabase.storage.from(b).getPublicUrl(path);
+          if (data?.publicUrl) return data.publicUrl;
+        }
+      } catch {}
+    }
+    throw new Error("Не успях да кача снимката (няма публичен bucket?).");
+  }
+
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setSaving(true);
+      setErr("");
+      // локален preview
+      const localUrl = URL.createObjectURL(file);
+      setAvatar(localUrl);
+
+      // качване
+      const publicUrl = await uploadAvatar(file);
+      setAvatar(publicUrl);
+
+      // запази веднага и в профила
+      const updated = {
+        ...me,
+        photos: [publicUrl],
+      };
+      setMe(updated);
+      await supabase.from("profiles").upsert({
+        id: me.id,
+        photos: [publicUrl],
+      });
+    } catch (e:any) {
+      setErr(e.message || "Грешка при качване.");
+      setAvatar(me.photos?.[0] || FALLBACK_AVATAR);
+    } finally {
+      setSaving(false);
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  }
 
   async function save(){
-    const updated = { ...me, bio, interests: interests.split(",").map(x=>x.trim()).filter(Boolean) };
-    setMe(updated);
-    try { await supabase.from('profiles').upsert(updated); } catch {}
+    try {
+      setSaving(true);
+      setErr("");
+      const updated = {
+        ...me,
+        name,
+        age: Number(age) || null,
+        gender,
+        zodiac,
+        city,
+        bio,
+        interests: interests.split(",").map(x=>x.trim()).filter(Boolean),
+        photos: [avatar || FALLBACK_AVATAR],
+      };
+      setMe(updated);
+      await supabase.from('profiles').upsert(updated);
+      setFlipped(false);
+    } catch (e:any) {
+      setErr(e.message || "Неуспешно запазване.");
+    } finally {
+      setSaving(false);
+    }
   }
+
   async function logout(){
     await supabase.auth.signOut();
     localStorage.removeItem('ll_uid');
@@ -379,34 +462,95 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
         <UserRound className="h-5 w-5"/><div className="text-xl font-bold">Моят профил</div>
         <button onClick={logout} className="ml-auto text-xs px-2 py-1 rounded-xl border flex items-center gap-1"><LogOut className="h-3.5 w-3.5"/> Изход</button>
       </div>
+
       <div className="mt-3" style={{perspective:"1200px"}}>
         <div className="relative h-[56vh] min-h-[380px] rounded-[28px] border overflow-hidden shadow-xl"
              style={{ transformStyle:"preserve-3d", transform:`rotateY(${flipped?180:0}deg)`, transition:"transform 400ms" }}>
+          {/* Front */}
           <div className="absolute inset-0" style={{ backfaceVisibility:"hidden"}}>
-            <img src={me.photos?.[0]} className="absolute inset-0 w-full h-full object-cover"/>
+            <img src={avatar} className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/70"/>
+            <button
+              onClick={()=>fileInput.current?.click()}
+              className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-black/55 text-white text-xs"
+            >
+              <Camera className="h-4 w-4"/> Смени снимка
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPickFile}
+            />
+
             <div className="absolute bottom-0 p-4 text-white">
-              <div className="text-2xl font-extrabold">{me.name}, {me.age}</div>
-              <div className="text-sm text-white/90">{me.city} · {me.zodiac}</div>
+              <div className="text-2xl font-extrabold">{name || "Без име"}, {age || "?"}</div>
+              <div className="text-sm text-white/90">{city || "Нереално място"} · {zodiac || "?"}</div>
               <div className="mt-2 flex flex-wrap gap-1">
-                {(me.interests||[]).slice(0,4).map((i:string,idx:number)=> (<span key={idx} className="px-2 py-1 rounded-full text-xs bg-white/80 text-neutral-800">{i}</span>))}
+                {(interests.split(",").map(x=>x.trim()).filter(Boolean)).slice(0,4).map((i:string,idx:number)=> (
+                  <span key={idx} className="px-2 py-1 rounded-full text-xs bg-white/80 text-neutral-800">{i}</span>
+                ))}
               </div>
             </div>
           </div>
-            <div className="absolute inset-0 bg-white p-4" style={{ transform:"rotateY(180deg)", backfaceVisibility:"hidden"}}>
-              <div className="text-sm text-neutral-500">Редакция</div>
-              <label className="block mt-2 text-xs text-neutral-500">Био</label>
-              <textarea value={bio} onChange={e=>setBio(e.target.value)} className="mt-1 w-full border rounded-xl p-3" rows={4}/>
-              <label className="block mt-3 text-xs text-neutral-500">Интереси (разделени със запетая)</label>
-              <input value={interests} onChange={e=>setInterests(e.target.value)} className="mt-1 w-full border rounded-xl p-3"/>
-              <div className="mt-4 flex gap-2">
-                <button onClick={()=>setFlipped(false)} className="px-4 py-2 rounded-xl border">Назад</button>
-                <button onClick={()=>{save(); setFlipped(false);}} className="px-4 py-2 rounded-xl bg-neutral-900 text-white">Запази</button>
+
+          {/* Back (editor) */}
+          <div className="absolute inset-0 bg-white p-4 overflow-y-auto"
+               style={{ transform:"rotateY(180deg)", backfaceVisibility:"hidden"}}>
+            <div className="text-sm text-neutral-500">Редакция</div>
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div>
+                <label className="block text-xs text-neutral-500">Име</label>
+                <input value={name} onChange={(e)=>setName(e.target.value)} className="mt-1 w-full border rounded-xl p-2.5"/>
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-500">Години</label>
+                <input type="number" value={age||""} onChange={(e)=>setAge(Number(e.target.value)||0)} className="mt-1 w-full border rounded-xl p-2.5"/>
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-500">Пол</label>
+                <select value={gender} onChange={(e)=>setGender(e.target.value)} className="mt-1 w-full border rounded-xl p-2.5">
+                  <option value="">—</option>
+                  <option>Мъж</option>
+                  <option>Жена</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-500">Зодия</label>
+                <select value={zodiac} onChange={(e)=>setZodiac(e.target.value)} className="mt-1 w-full border rounded-xl p-2.5">
+                  <option value="">—</option>
+                  {["Овен","Телец","Близнаци","Рак","Лъв","Дева","Везни","Скорпион","Стрелец","Козирог","Водолей","Риби"].map(z=>(<option key={z}>{z}</option>))}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-neutral-500">Град</label>
+                <input value={city} onChange={(e)=>setCity(e.target.value)} className="mt-1 w-full border rounded-xl p-2.5"/>
               </div>
             </div>
+
+            <label className="block mt-3 text-xs text-neutral-500">Био</label>
+            <textarea value={bio} onChange={(e)=>setBio(e.target.value)} className="mt-1 w-full border rounded-xl p-3" rows={4}/>
+
+            <label className="block mt-3 text-xs text-neutral-500">Интереси (разделени със запетая)</label>
+            <input value={interests} onChange={(e)=>setInterests(e.target.value)} className="mt-1 w-full border rounded-xl p-3"/>
+
+            {err && <div className="mt-3 text-sm text-rose-600">{err}</div>}
+
+            <div className="mt-4 flex gap-2">
+              <button onClick={()=>setFlipped(false)} className="px-4 py-2 rounded-xl border">Назад</button>
+              <button onClick={save} disabled={saving} className="px-4 py-2 rounded-xl bg-neutral-900 text-white flex items-center gap-2">
+                {saving && <Loader2 className="h-4 w-4 animate-spin"/>} Запази
+              </button>
+            </div>
+          </div>
         </div>
+
         <div className="mt-3 flex items-center gap-2">
-          <button onClick={()=>setFlipped(f=>!f)} className="flex-1 px-4 py-3 rounded-2xl border">{flipped?"Виж предната страна":"Редактирай"}</button>
+          <button onClick={()=>setFlipped(f=>!f)} className="flex-1 px-4 py-3 rounded-2xl border">
+            {flipped?"Виж предната страна":"Редактирай"}
+          </button>
           <button onClick={()=>alert("Скоро: верификация със селфи (демо)")} className="px-4 py-3 rounded-2xl bg-emerald-500 text-white">Верифицирай</button>
         </div>
       </div>
@@ -414,7 +558,7 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   );
 }
 
-/* ---------- Plans ---------- */
+// ---------- Plans ----------
 function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)=>void; plan:string; setPlan:(p:string)=>void;}){
   const packs = [
     {amt:50,  price:"4.99 лв"},
@@ -471,20 +615,21 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
   );
 }
 
-/* ---------- Навигация ---------- */
+// ---------- Навигация ----------
 function TabBar({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void; coins:number; plan:string;}){
   const tabs = [
-    {k:"discover", label:"Открий", icon: Users},
-    {k:"chat",     label:"Чат",    icon: MessageCircle},
-    {k:"profile",  label:"Профил", icon: UserRound},
-    {k:"plans",    label:"Планове",icon: Crown},
+    {k:"discover", label:"Открий"},
+    {k:"chat",     label:"Чат"},
+    {k:"profile",  label:"Профил"},
+    {k:"plans",    label:"Планове"},
   ];
   return (
     <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/80 backdrop-blur border-t border-neutral-200">
       <div className="max-w-md mx-auto px-3 py-2 flex items-center gap-2">
-        {tabs.map(t=>{ const Icon=t.icon; const active=tab===t.k; return (
+        {tabs.map(t=>{ const active=tab===t.k; return (
           <button key={t.k} onClick={()=>setTab(t.k)} className={cn("flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl", active && "bg-neutral-900 text-white")}>
-            <Icon className="h-5 w-5"/><span className="text-[11px] leading-none">{t.label}</span>
+            {/* икони махнати за компактност на мобилния таб */}
+            <span className="text-[11px] leading-none">{t.label}</span>
           </button>
         );})}
       </div>
@@ -518,7 +663,40 @@ function TopTabs({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void
   );
 }
 
-/* ---------- Приложение ---------- */
+// ---------- Помощни: създаване/синхронизиране на профил ----------
+async function ensureProfileForSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user?.id) return null;
+
+  // опитай да вземеш запис
+  const { data: prof } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+
+  if (prof) return prof;
+
+  // ако липсва – създай базов запис
+  const display =
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split("@")[0] ||
+    "User";
+
+  const base = {
+    id: user.id,
+    name: display,
+    age: 0,
+    gender: "",
+    zodiac: "",
+    city: "",
+    bio: "",
+    interests: [],
+    photos: [FALLBACK_AVATAR],
+  };
+  await supabase.from("profiles").upsert(base);
+  return base;
+}
+
+// ---------- Приложение ----------
 export default function LoveLinkMVP(){
   const [tab, setTab] = useState("discover");
   const [me, setMe] = useState<any|null>(null);
@@ -537,18 +715,11 @@ export default function LoveLinkMVP(){
     }
   },[]);
 
-  // Зареждане на сесия от Supabase, ако има
+  // Зареждане на сесия/профил от Supabase, ако има
   useEffect(()=>{
     (async()=>{
-      const { data: { session} } = await supabase.auth.getSession();
-      if(session?.user){
-        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        setMe(data || {
-          id: session.user.id,
-          name: session.user.email?.split('@')[0] || 'Потребител',
-          photos: DEMO_USERS[0].photos, age: 28, gender:'', zodiac:'', city:'', interests:[], bio:''
-        });
-      }
+      const prof = await ensureProfileForSession();
+      if (prof) setMe(prof);
     })();
   },[]);
 
@@ -563,17 +734,19 @@ export default function LoveLinkMVP(){
       if(filters.gender) (query as any).eq('gender', filters.gender);
       if(filters.city)   (query as any).ilike('city', `%${filters.city}%`);
       if(filters.zodiac) (query as any).eq('zodiac', filters.zodiac);
+      if(me?.id)         (query as any).neq('id', me.id); // не показвай себе си
       const { data } = await (query as any);
       if(data && data.length){ setQueue(data); }
       else {
         setQueue(DEMO_USERS.filter(u=> (
           (!filters.gender || u.gender===filters.gender) &&
           (!filters.city || u.city.toLowerCase().includes(String(filters.city).toLowerCase())) &&
-          (!filters.zodiac || u.zodiac===filters.zodiac)
+          (!filters.zodiac || u.zodiac===filters.zodiac) &&
+          (me?.id ? u.id !== me.id : true)
         )));
       }
     })();
-  },[filters]);
+  },[filters, me?.id]);
 
   // Действия
   async function like(u:any){
