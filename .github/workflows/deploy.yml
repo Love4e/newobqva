@@ -1,4 +1,4 @@
-name: pages build and deployment
+name: Deploy Vite app to GitHub Pages
 
 on:
   push:
@@ -12,32 +12,33 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # без cache, за да не е нужен lock файл
+          cache: npm
 
-      - name: Install deps
-        run: npm install --no-fund --no-audit
+      - name: Install dependencies
+        run: npm ci || npm i
 
+      # ВАЖНО: добавяме Supabase ключовете като env за билд стъпката
       - name: Build Vite
-        run: npm run build
         env:
-          # Supabase
           VITE_SUPABASE_URL: https://gazaegcwedqiyaefkgsr.supabase.co
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhemFlZ2N3ZWRxaXlhZWZrZ3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNDU3NzYsImV4cCI6MjA3MTcyMTc3Nn0.DCz7PhdKzQiOGgQwjgZ3JdOS4LfB-Bmb32VatfRsHB8
-          # Публичен адрес на сайта (ако ти потрябва в кода)
-          VITE_SITE_URL: https://love4e.github.io/lovelink-mvp/
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
