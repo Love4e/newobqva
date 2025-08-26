@@ -3,34 +3,89 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import {
   Heart, X, MessageCircle, UserRound, Coins, Crown, Users,
-  Flame, Star, ShieldCheck, Loader2, LogOut, Camera
+  Flame, Star, ShieldCheck, Loader2, LogOut, Image as ImageIcon, LogIn
 } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, Session, User } from "@supabase/supabase-js";
 
 /* =====================================================
    LoveLink — 3D Mobile/Desktop MVP (Supabase + PWA)
    ===================================================== */
 
-// Supabase (остави стойностите по подразбиране, ако нямаш .env)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://YOUR.supabase.co";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR-ANON-KEY";
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// --- Supabase (ползва .env, но има и fallbacks за демо) ---
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL || "https://YOUR.supabase.co";
+const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR-ANON-KEY";
 
-// Демо потребители (ако няма данни в Supabase)
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// --- DEMO профили (ако няма данни в БД) ---
 const DEMO_USERS = [
-  { id:"u1", name:"Ива",   age:27, gender:"Жена", zodiac:"Везни",   city:"София",   interests:["йога","кино","планина"], bio:"Вярвам в добрия разговор и спонтанните пътувания.", photos:["https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1200&auto=format&fit=crop"], online:true },
-  { id:"u2", name:"Алекс", age:31, gender:"Мъж",  zodiac:"Лъв",     city:"Пловдив", interests:["тех","фитнес","музика"],  bio:"Front-end ентусиаст и фен на пътуванията.",       photos:["https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop"], online:true },
-  { id:"u3", name:"Мария", age:22, gender:"Жена", zodiac:"Риби",    city:"Варна",   interests:["изкуство","книги","йога"], bio:"Морско момиче с голяма библиотека и любопитство.", photos:["https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1200&auto=format&fit=crop"], online:false },
-  { id:"u4", name:"Дани",  age:29, gender:"Мъж",  zodiac:"Козирог", city:"София",   interests:["футбол","игри","кино"],   bio:"Шегите ми са по-добри на живо.",                    photos:["https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=1200&auto=format&fit=crop"], online:true },
+  {
+    id: "u1",
+    name: "Ива",
+    age: 27,
+    gender: "Жена",
+    zodiac: "Везни",
+    city: "София",
+    interests: ["йога", "кино", "планина"],
+    bio: "Вярвам в добрия разговор и спонтанните пътувания.",
+    photos: [
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1200&auto=format&fit=crop",
+    ],
+    online: true,
+  },
+  {
+    id: "u2",
+    name: "Алекс",
+    age: 31,
+    gender: "Мъж",
+    zodiac: "Лъв",
+    city: "Пловдив",
+    interests: ["тех", "фитнес", "музика"],
+    bio: "Front-end ентусиаст и фен на пътуванията.",
+    photos: [
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop",
+    ],
+    online: true,
+  },
+  {
+    id: "u3",
+    name: "Мария",
+    age: 22,
+    gender: "Жена",
+    zodiac: "Риби",
+    city: "Варна",
+    interests: ["изкуство", "книги", "йога"],
+    bio: "Морско момиче с голяма библиотека и любопитство.",
+    photos: [
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1200&auto=format&fit=crop",
+    ],
+    online: false,
+  },
+  {
+    id: "u4",
+    name: "Дани",
+    age: 29,
+    gender: "Мъж",
+    zodiac: "Козирог",
+    city: "София",
+    interests: ["футбол", "игри", "кино"],
+    bio: "Шегите ми са по-добри на живо.",
+    photos: [
+      "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=1200&auto=format&fit=crop",
+    ],
+    online: true,
+  },
 ];
 
-// Улесняващи
-const cn  = (...c: (string|false|undefined)[])=> c.filter(Boolean).join(" ");
-const uid = ()=> (crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
+const cn = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(" ");
+const uid = () =>
+  (crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
 
-/* =============================
-   Глобален фикс-док с бутоните
-   ============================= */
+/* =====================================================
+   Глобален док с бутоните (fix над tab бара на мобилни)
+   ===================================================== */
 function ActionDock({
   visible,
   onDislike,
@@ -57,13 +112,25 @@ function ActionDock({
       </div>
 
       <div className="flex items-center gap-5 [--btn:3.5rem] sm:[--btn:4rem]">
-        <DockBtn label="Откажи" className="bg-white text-gray-700 ring-1 ring-black/10" onClick={onDislike}>
+        <DockBtn
+          label="Откажи"
+          className="bg-white text-gray-700 ring-1 ring-black/10"
+          onClick={onDislike}
+        >
           <X className="h-6 w-6" />
         </DockBtn>
-        <DockBtn label="Съобщение" className="bg-amber-400 text-white ring-1 ring-black/10" onClick={onMessage}>
+        <DockBtn
+          label="Съобщение"
+          className="bg-amber-400 text-white ring-1 ring-black/10"
+          onClick={onMessage}
+        >
           <MessageCircle className="h-6 w-6" />
         </DockBtn>
-        <DockBtn label="Харесай" className="bg-rose-500 text-white ring-1 ring-black/10" onClick={onLike}>
+        <DockBtn
+          label="Харесай"
+          className="bg-rose-500 text-white ring-1 ring-black/10"
+          onClick={onLike}
+        >
           <Heart className="h-6 w-6" />
         </DockBtn>
       </div>
@@ -99,33 +166,49 @@ function DockBtn({
   );
 }
 
-// ---------- Auth ----------
-function AuthGate({setMe}:{setMe:(v:any)=>void}){
-  const [email,setEmail] = useState("");
-  const [loading,setLoading] = useState(false);
-  const [err,setErr] = useState("");
+/* ==========================
+   Auth — Google + Guest
+   ========================== */
+function AuthGate({ setMe }: { setMe: (v: any) => void }) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
 
-  async function signInEmail(){
-    try{
-      setLoading(true); setErr("");
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options:{ emailRedirectTo: window.location.href }
+  async function signInGoogle() {
+    try {
+      setLoading(true);
+      setErr("");
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo:
+            window.location.origin +
+            (import.meta.env.BASE_URL || "/"),
+          queryParams: { prompt: "select_account" },
+        },
       });
-      if(error) throw error;
-      alert("Изпратихме код/линк към имейла ти.");
-    }catch(e:any){ setErr(e.message||String(e)); }
-    finally{ setLoading(false); }
+      if (error) throw error;
+      // redirect ще се случи автоматично
+    } catch (e: any) {
+      setErr(e.message || String(e));
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function continueGuest(){
+  function continueGuest() {
     const demo = {
       id: localStorage.getItem("ll_uid") || uid(),
-      name: "Гост", age: 28, gender: "Мъж", zodiac:"Водолей", city:"София",
-      interests:["музика","планина","технологии"],
-      bio:"Готов за нови запознанства.",
-      photos:["https://images.unsplash.com/photo-1544005314-2035b3c58b05?q=80&w=1200&auto=format&fit=crop"],
-      online:true
+      name: "Гост",
+      age: 28,
+      gender: "Мъж",
+      zodiac: "Водолей",
+      city: "София",
+      interests: ["музика", "планина", "технологии"],
+      bio: "Готов за нови запознанства.",
+      photos: [
+        "https://images.unsplash.com/photo-1544005314-2035b3c58b05?q=80&w=1200&auto=format&fit=crop",
+      ],
+      online: true,
     };
     localStorage.setItem("ll_uid", demo.id);
     setMe(demo);
@@ -135,37 +218,78 @@ function AuthGate({setMe}:{setMe:(v:any)=>void}){
     <div className="min-h-[80vh] grid place-items-center p-6 bg-[radial-gradient(ellipse_at_top,_#ffe4ea,_#eef3ff)]">
       <div className="w-full max-w-sm bg-white/80 backdrop-blur border rounded-3xl p-5 shadow-xl">
         <div className="flex items-center gap-2">
-          <Star className="h-5 w-5 text-rose-500"/><div className="text-xl font-extrabold">LoveLink</div>
+          <Star className="h-5 w-5 text-rose-500" />
+          <div className="text-xl font-extrabold">LoveLink</div>
         </div>
-        <div className="mt-1 text-sm text-neutral-600">Вход/регистрация</div>
-        <label className="block mt-4 text-xs text-neutral-500">Имейл</label>
-        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@email.com" className="mt-1 w-full border rounded-xl p-3"/>
-        <button onClick={signInEmail} disabled={loading} className="mt-3 w-full px-4 py-3 rounded-2xl bg-neutral-900 text-white flex items-center justify-center gap-2">
-          {loading && <Loader2 className="h-4 w-4 animate-spin"/>} Получи код на имейл
+        <div className="mt-1 text-sm text-neutral-600">
+          Вход/регистрация
+        </div>
+
+        <button
+          onClick={signInGoogle}
+          disabled={loading}
+          className="mt-4 w-full px-4 py-3 rounded-2xl bg-neutral-900 text-white flex items-center justify-center gap-2"
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogIn className="h-4 w-4" />
+          )}
+          Влез с Google
         </button>
+
         <div className="mt-3 text-xs text-neutral-500">или</div>
-        <button onClick={continueGuest} className="mt-2 w-full px-4 py-3 rounded-2xl border">Продължи като гост</button>
+
+        <button
+          onClick={continueGuest}
+          className="mt-2 w-full px-4 py-3 rounded-2xl border"
+        >
+          Продължи като гост
+        </button>
+
         {err && <div className="mt-3 text-sm text-rose-600">{err}</div>}
-        <div className="mt-4 text-xs text-neutral-500 flex items-center gap-1"><ShieldCheck className="h-4 w-4"/> Защитено от Supabase Auth</div>
+
+        <div className="mt-4 text-xs text-neutral-500 flex items-center gap-1">
+          <ShieldCheck className="h-4 w-4" /> Защитено от Supabase Auth
+        </div>
       </div>
     </div>
   );
 }
 
-// Онлайн присъствие (по желание)
-function usePresence(me:any){
-  useEffect(()=>{
-    if(!me?.id) return;
-    const channel = supabase.channel('online', { config:{ presence:{ key: me.id } } });
-    channel.subscribe((status)=>{
-      if(status==='SUBSCRIBED') channel.track({ id: me.id, name: me.name, city: me.city });
+/* ==========================
+   Присъствие (optional)
+   ========================== */
+function usePresence(me: any) {
+  useEffect(() => {
+    if (!me?.id) return;
+    const channel = supabase.channel("online", {
+      config: { presence: { key: me.id } },
     });
-    return ()=>{ channel.unsubscribe(); };
-  },[me?.id]);
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED")
+        channel.track({ id: me.id, name: me.name, city: me.city });
+    });
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [me?.id]);
 }
 
-// ---------- Swipe Card ----------
-function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>void; onNope:(u:any)=>void; onMessage:(u:any)=>void;}){
+/* ==========================
+   Swipe Card
+   ========================== */
+function SwipeCard({
+  user,
+  onLike,
+  onNope,
+  onMessage,
+}: {
+  user: any;
+  onLike: (u: any) => void;
+  onNope: (u: any) => void;
+  onMessage: (u: any) => void;
+}) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-150, 0, 150], [-15, 0, 15]);
   const opacityRight = useTransform(x, [50, 120], [0, 1]);
@@ -175,66 +299,161 @@ function SwipeCard({user, onLike, onNope, onMessage}:{user:any; onLike:(u:any)=>
     <motion.div
       className="relative h-[68vh] min-h-[440px] rounded-[28px] overflow-hidden shadow-2xl border bg-neutral-900"
       style={{ x, rotate }}
-      drag="x" dragConstraints={{ left:0, right:0 }} dragElastic={0.8}
-      onDragEnd={(e, info)=>{
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.8}
+      onDragEnd={(e, info) => {
         const t = 120;
-        if(info.offset.x > t) onLike(user);
-        else if(info.offset.x < -t) onNope(user);
+        if (info.offset.x > t) onLike(user);
+        else if (info.offset.x < -t) onNope(user);
         else x.set(0);
       }}
     >
-      <img src={user.photos?.[0]} alt={user.name} className="absolute inset-0 w-full h-full object-cover"/>
-      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/5 to-black/60"/>
-      <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs">{user.city} · {user.zodiac}</div>
+      <img
+        src={user.photos?.[0]}
+        alt={user.name}
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/5 to-black/60" />
+      <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs">
+        {user.city} · {user.zodiac}
+      </div>
       <div className="absolute bottom-0 w-full p-4">
-        <div className="text-white text-2xl font-extrabold drop-shadow">{user.name}, {user.age}</div>
+        <div className="text-white text-2xl font-extrabold drop-shadow">
+          {user.name}, {user.age}
+        </div>
         <div className="mt-2 flex flex-wrap gap-1">
-          {(user.interests||[]).slice(0,4).map((i:string,idx:number)=> (
-            <span key={idx} className="px-2 py-1 rounded-full text-xs bg-white/80 text-neutral-800">{i}</span>
+          {(user.interests || []).slice(0, 4).map((i: string, idx: number) => (
+            <span
+              key={idx}
+              className="px-2 py-1 rounded-full text-xs bg-white/80 text-neutral-800"
+            >
+              {i}
+            </span>
           ))}
         </div>
         <div className="mt-2 text-white/90 text-sm drop-shadow">{user.bio}</div>
       </div>
 
-      <motion.div style={{ opacity: opacityRight }} className="absolute top-5 right-5 px-3 py-1.5 rounded-xl bg-emerald-500/90 text-white text-sm">LIKE</motion.div>
-      <motion.div style={{ opacity: opacityLeft }} className="absolute top-5 left-5 px-3 py-1.5 rounded-xl bg-rose-500/90 text-white text-sm">NOPE</motion.div>
+      <motion.div
+        style={{ opacity: opacityRight }}
+        className="absolute top-5 right-5 px-3 py-1.5 rounded-xl bg-emerald-500/90 text-white text-sm"
+      >
+        LIKE
+      </motion.div>
+      <motion.div
+        style={{ opacity: opacityLeft }}
+        className="absolute top-5 left-5 px-3 py-1.5 rounded-xl bg-rose-500/90 text-white text-sm"
+      >
+        NOPE
+      </motion.div>
     </motion.div>
   );
 }
 
-// ---------- Discover ----------
-function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]; like:(u:any)=>void; nope:(u:any)=>void; message:(u:any)=>void; filters:any; setFilters:(f:any)=>void;}){
+/* ==========================
+   Discover
+   ========================== */
+function Discover({
+  queue,
+  like,
+  nope,
+  message,
+  filters,
+  setFilters,
+}: {
+  queue: any[];
+  like: (u: any) => void;
+  nope: (u: any) => void;
+  message: (u: any) => void;
+  filters: any;
+  setFilters: (f: any) => void;
+}) {
   const user = queue[0];
   return (
     <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-4 pb-[180px] md:pb-28">
       <div className="sticky top-0 z-10 -mx-4 px-4 pb-3 bg-gradient-to-b from-white to-transparent">
         <div className="flex items-center gap-2">
-          <div className="text-xl font-extrabold tracking-tight flex items-center gap-2"><Flame className="h-5 w-5 text-rose-500"/> LoveLink</div>
-          <button onClick={()=>alert("Скоро: speed chatting вечер, 20:00 (демо)")} className="ml-auto px-3 py-1.5 rounded-full border text-xs">Събития</button>
+          <div className="text-xl font-extrabold tracking-tight flex items-center gap-2">
+            <Flame className="h-5 w-5 text-rose-500" /> LoveLink
+          </div>
+          <button
+            onClick={() => alert("Скоро: speed chatting вечер, 20:00 (демо)")}
+            className="ml-auto px-3 py-1.5 rounded-full border text-xs"
+          >
+            Събития
+          </button>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2 md:max-w-lg">
-          <select className="px-3 py-2 rounded-xl border text-sm" value={filters.gender||""} onChange={e=>setFilters((f:any)=>({...f, gender:e.target.value}))}>
-            <option value="">Пол</option><option>Мъж</option><option>Жена</option>
+          <select
+            className="px-3 py-2 rounded-xl border text-sm"
+            value={filters.gender || ""}
+            onChange={(e) =>
+              setFilters((f: any) => ({ ...f, gender: e.target.value }))
+            }
+          >
+            <option value="">Пол</option>
+            <option>Мъж</option>
+            <option>Жена</option>
           </select>
-          <input type="text" placeholder="Град" value={filters.city||""} onChange={e=>setFilters((f:any)=>({...f, city:e.target.value}))} className="px-3 py-2 rounded-xl border text-sm"/>
-          <select className="px-3 py-2 rounded-xl border text-sm" value={filters.zodiac||""} onChange={e=>setFilters((f:any)=>({...f, zodiac:e.target.value}))}>
+          <input
+            type="text"
+            placeholder="Град"
+            value={filters.city || ""}
+            onChange={(e) =>
+              setFilters((f: any) => ({ ...f, city: e.target.value }))
+            }
+            className="px-3 py-2 rounded-xl border text-sm"
+          />
+          <select
+            className="px-3 py-2 rounded-xl border text-sm"
+            value={filters.zodiac || ""}
+            onChange={(e) =>
+              setFilters((f: any) => ({ ...f, zodiac: e.target.value }))
+            }
+          >
             <option value="">Зодия</option>
-            {["Овен","Телец","Близнаци","Рак","Лъв","Дева","Везни","Скорпион","Стрелец","Козирог","Водолей","Риби"].map(z=>(<option key={z}>{z}</option>))}
+            {[
+              "Овен",
+              "Телец",
+              "Близнаци",
+              "Рак",
+              "Лъв",
+              "Дева",
+              "Везни",
+              "Скорпион",
+              "Стрелец",
+              "Козирог",
+              "Водолей",
+              "Риби",
+            ].map((z) => (
+              <option key={z}>{z}</option>
+            ))}
           </select>
         </div>
       </div>
       <div className="mt-2 relative">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-rose-50 via-white to-white"/>
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-rose-50 via-white to-white" />
         <div className="relative">
-          {queue.slice(1,3).map((u,i)=> (
-            <div key={u.id} className="absolute inset-x-0 top-2 scale-95" style={{transform:`translateY(${i*10+6}px)`, opacity: 0.5 - i*0.2}}>
-              <div className="h-[60vh] min-h-[420px] rounded-[28px] overflow-hidden border bg-neutral-100"/>
+          {queue.slice(1, 3).map((u, i) => (
+            <div
+              key={u.id}
+              className="absolute inset-x-0 top-2 scale-95"
+              style={{
+                transform: `translateY(${i * 10 + 6}px)`,
+                opacity: 0.5 - i * 0.2,
+              }}
+            >
+              <div className="h-[60vh] min-h-[420px] rounded-[28px] overflow-hidden border bg-neutral-100" />
             </div>
           ))}
           {user ? (
             <SwipeCard user={user} onLike={like} onNope={nope} onMessage={message} />
           ) : (
-            <div className="h-[60vh] min-h-[420px] rounded-[28px] border grid place-items-center text-neutral-500">Няма повече профили по тези филтри.</div>
+            <div className="h-[60vh] min-h-[420px] rounded-[28px] border grid place-items-center text-neutral-500">
+              Няма повече профили по тези филтри.
+            </div>
           )}
         </div>
       </div>
@@ -242,288 +461,523 @@ function Discover({queue, like, nope, message, filters, setFilters}:{queue:any[]
   );
 }
 
-// ---------- Global Chat ----------
-function GlobalChat({roomId, me}:{roomId:string; me:any;}){
-  const [text,setText] = useState("");
-  const [messages,setMessages] = useState<any[]>([]);
-  const scRef = useRef<HTMLDivElement|null>(null);
+/* ==========================
+   Global Chat
+   ========================== */
+function GlobalChat({ roomId, me }: { roomId: string; me: any }) {
+  const [text, setText] = useState("");
+  const [messages, setMessages] = useState<any[]>([]);
+  const scRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(()=>{ if(scRef.current) scRef.current.scrollTop = scRef.current.scrollHeight; },[messages]);
-  useEffect(()=>{
-    let stop=false;
-    (async()=>{
-      try {
-        const { data } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('room_id', roomId)
-          .order('created_at',{ascending:true})
-          .limit(200);
-        if(!stop && data) setMessages(data);
-        const ch = supabase
-          .channel(`room:${roomId}`)
-          .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` },
-            (payload:any)=> setMessages(prev=>[...prev, payload.new]));
-        ch.subscribe();
-      } catch {}
+  useEffect(() => {
+    if (scRef.current) scRef.current.scrollTop = scRef.current.scrollHeight;
+  }, [messages]);
+
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("room_id", roomId)
+        .order("created_at", { ascending: true })
+        .limit(200);
+      if (!stop && data) setMessages(data);
+      const ch = supabase
+        .channel(`room:${roomId}`)
+        .on(
+          "postgres_changes" as any,
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `room_id=eq.${roomId}`,
+          } as any,
+          (payload: any) => setMessages((prev) => [...prev, payload.new])
+        );
+      ch.subscribe();
     })();
-    return ()=>{ stop=true; supabase.removeAllChannels(); };
-  },[roomId]);
+    return () => {
+      stop = true;
+      supabase.removeAllChannels();
+    };
+  }, [roomId]);
 
-  async function send(){
-    const t = text.trim(); if(!t) return; setText("");
-    const msg = { id: uid(), room_id: roomId, from_id: me.id, text: t, created_at: new Date().toISOString() };
-    setMessages(prev=>[...prev, msg]);
-    try { await supabase.from('messages').insert(msg); } catch {}
+  async function send() {
+    const t = text.trim();
+    if (!t) return;
+    setText("");
+    const msg = {
+      id: uid(),
+      room_id: roomId,
+      from_id: me.id,
+      text: t,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, msg]);
+    try {
+      await supabase.from("messages").insert(msg);
+    } catch {}
   }
 
   return (
     <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
       <div className="text-xl font-bold">Обща чат стая</div>
-      <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
-        {messages.map((m:any)=> (
-          <div key={m.id} className={cn("max-w-[82%]", m.from_id===me.id?"ml-auto":"")}>
-            <div className="text-[10px] text-neutral-500 mb-1">{m.from_id===me.id?"Ти":"Потребител"} · {new Date(m.created_at).toLocaleTimeString()}</div>
-            <div className={cn("px-3 py-2 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.08)]", m.from_id===me.id?"bg-neutral-900 text-white skew-y-[-2deg]":"bg-neutral-100 skew-y-[2deg]")}>{m.text}</div>
+      <div
+        ref={scRef}
+        className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3"
+      >
+        {messages.map((m: any) => (
+          <div key={m.id} className={cn("max-w-[82%]", m.from_id === me.id ? "ml-auto" : "")}>
+            <div className="text-[10px] text-neutral-500 mb-1">
+              {m.from_id === me.id ? "Ти" : "Потребител"} ·{" "}
+              {new Date(m.created_at).toLocaleTimeString()}
+            </div>
+            <div
+              className={cn(
+                "px-3 py-2 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.08)]",
+                m.from_id === me.id
+                  ? "bg-neutral-900 text-white skew-y-[-2deg]"
+                  : "bg-neutral-100 skew-y-[2deg]"
+              )}
+            >
+              {m.text}
+            </div>
           </div>
         ))}
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <input value={text} onChange={e=>setText(e.target.value)} placeholder="Напиши нещо мило…" className="flex-1 px-4 py-3 rounded-2xl border"/>
-        <button onClick={send} className="h-12 w-12 rounded-2xl grid place-items-center bg-neutral-900 text-white"><MessageCircle className="h-5 w-5"/></button>
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Напиши нещо мило…"
+          className="flex-1 px-4 py-3 rounded-2xl border"
+        />
+        <button
+          onClick={send}
+          className="h-12 w-12 rounded-2xl grid place-items-center bg-neutral-900 text-white"
+        >
+          <MessageCircle className="h-5 w-5" />
+        </button>
       </div>
     </div>
   );
 }
 
-// ---------- Direct Chat ----------
-function DirectChat({me, peer}:{me:any; peer:any;}){
-  const roomId = useMemo(()=> [me.id, peer.id].sort().join('::'), [me.id, peer.id]);
-  const [messages,setMessages] = useState<any[]>([]);
-  const [text,setText] = useState("");
-  const scRef = useRef<HTMLDivElement|null>(null);
+/* ==========================
+   Direct Chat
+   ========================== */
+function DirectChat({ me, peer }: { me: any; peer: any }) {
+  const roomId = useMemo(() => [me.id, peer.id].sort().join("::"), [me.id, peer.id]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [text, setText] = useState("");
+  const scRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(()=>{ if(scRef.current) scRef.current.scrollTop = scRef.current.scrollHeight; },[messages]);
-  useEffect(()=>{
-    let stop=false;
-    (async()=>{
-      try {
-        const { data } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('room_id', roomId)
-          .order('created_at',{ascending:true})
-          .limit(200);
-        if(!stop && data) setMessages(data);
-        const ch = supabase
-          .channel(`dm:${roomId}`)
-          .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` },
-            (payload:any)=> setMessages(prev=>[...prev, payload.new]));
-        ch.subscribe();
-      } catch {}
+  useEffect(() => {
+    if (scRef.current) scRef.current.scrollTop = scRef.current.scrollHeight;
+  }, [messages]);
+
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("room_id", roomId)
+        .order("created_at", { ascending: true })
+        .limit(200);
+      if (!stop && data) setMessages(data);
+      const ch = supabase
+        .channel(`dm:${roomId}`)
+        .on(
+          "postgres_changes" as any,
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `room_id=eq.${roomId}`,
+          } as any,
+          (payload: any) => setMessages((prev) => [...prev, payload.new])
+        );
+      ch.subscribe();
     })();
-    return ()=>{ stop=true; supabase.removeAllChannels(); };
-  },[roomId]);
+    return () => {
+      stop = true;
+      supabase.removeAllChannels();
+    };
+  }, [roomId]);
 
-  async function send(){
-    const t=text.trim(); if(!t) return; setText("");
-    const msg = { id: uid(), room_id: roomId, from_id: me.id, to_id: peer.id, text: t, created_at: new Date().toISOString() };
-    setMessages(prev=>[...prev, msg]);
-    try { await supabase.from('messages').insert(msg); } catch {}
+  async function send() {
+    const t = text.trim();
+    if (!t) return;
+    setText("");
+    const msg = {
+      id: uid(),
+      room_id: roomId,
+      from_id: me.id,
+      to_id: peer.id,
+      text: t,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, msg]);
+    try {
+      await supabase.from("messages").insert(msg);
+    } catch {}
   }
 
   return (
     <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
-      <div className="flex items-center gap-2"><UserRound className="h-5 w-5"/><div className="text-xl font-bold">Чат с {peer.name}</div></div>
-      <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
-        {messages.map((m:any)=> (
-          <div key={m.id} className={cn("max-w-[82%]", m.from_id===me.id?"ml-auto":"")}>
-            <div className="text-[10px] text-neutral-500 mb-1">{m.from_id===me.id?"Ти":peer.name} · {new Date(m.created_at).toLocaleTimeString()}</div>
-            <div className={cn("px-3 py-2 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.08)]", m.from_id===me.id?"bg-neutral-900 text-white skew-y-[-2deg]":"bg-neutral-100 skew-y-[2deg]")}>{m.text}</div>
+      <div className="flex items-center gap-2">
+        <UserRound className="h-5 w-5" />
+        <div className="text-xl font-bold">Чат с {peer.name}</div>
+      </div>
+      <div
+        ref={scRef}
+        className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3"
+      >
+        {messages.map((m: any) => (
+          <div key={m.id} className={cn("max-w-[82%]", m.from_id === me.id ? "ml-auto" : "")}>
+            <div className="text-[10px] text-neutral-500 mb-1">
+              {m.from_id === me.id ? "Ти" : peer.name} ·{" "}
+              {new Date(m.created_at).toLocaleTimeString()}
+            </div>
+            <div
+              className={cn(
+                "px-3 py-2 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.08)]",
+                m.from_id === me.id
+                  ? "bg-neutral-900 text-white skew-y-[-2deg]"
+                  : "bg-neutral-100 skew-y-[2deg]"
+              )}
+            >
+              {m.text}
+            </div>
           </div>
         ))}
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <input value={text} onChange={e=>setText(e.target.value)} placeholder={`До ${peer.name}…`} className="flex-1 px-4 py-3 rounded-2xl border"/>
-        <button onClick={send} className="h-12 w-12 rounded-2xl grid place-items-center bg-neutral-900 text-white"><MessageCircle className="h-5 w-5"/></button>
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={`До ${peer.name}…`}
+          className="flex-1 px-4 py-3 rounded-2xl border"
+        />
+        <button
+          onClick={send}
+          className="h-12 w-12 rounded-2xl grid place-items-center bg-neutral-900 text-white"
+        >
+          <MessageCircle className="h-5 w-5" />
+        </button>
       </div>
     </div>
   );
 }
 
-/* ------------- AvatarUploader (ново) ------------- */
-function AvatarUploader({me, onUploaded}:{me:any; onUploaded:(url:string)=>void;}){
-  const [busy,setBusy] = useState(false);
-  const fileRef = useRef<HTMLInputElement|null>(null);
-
-  async function pick(){
-    fileRef.current?.click();
-  }
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>){
-    const file = e.target.files?.[0];
-    if(!file || !me?.id) return;
-    try{
-      setBusy(true);
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `${me.id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
-      if(upErr) throw upErr;
-      const { data:pub } = supabase.storage.from('avatars').getPublicUrl(path);
-      if(!pub?.publicUrl) throw new Error("No public URL");
-      onUploaded(pub.publicUrl);
-    }catch(err:any){
-      console.error(err);
-      alert("Не успях да кача снимката. Провери дали имаш bucket 'avatars' и RLS политики за четене/качване.");
-    }finally{ setBusy(false); }
-  }
-
-  return (
-    <>
-      <button type="button" onClick={pick} disabled={busy}
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white">
-        <Camera className="h-4 w-4"/>{busy? "Качване..." : "Качи/смени снимка"}
-      </button>
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile}/>
-    </>
-  );
-}
-
-// ---------- Profile ----------
-function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
+/* ==========================
+   Profile (с аватар + поля)
+   ========================== */
+function Profile({ me, setMe, isAuthed }: { me: any; setMe: (v: any) => void; isAuthed: boolean }) {
   const [flipped, setFlipped] = useState(false);
+  const [bio, setBio] = useState(me.bio || "");
+  const [interests, setInterests] = useState((me.interests || []).join(", "));
+  const [age, setAge] = useState<number | undefined>(me.age || undefined);
+  const [gender, setGender] = useState(me.gender || "");
+  const [zodiac, setZodiac] = useState(me.zodiac || "");
+  const [city, setCity] = useState(me.city || "");
+  const [uploading, setUploading] = useState(false);
 
-  // форми
-  const [name,setName]       = useState(me.name||"");
-  const [age,setAge]         = useState<number|string>(me.age||"");
-  const [gender,setGender]   = useState(me.gender||"");
-  const [city,setCity]       = useState(me.city||"");
-  const [zodiac,setZodiac]   = useState(me.zodiac||"");
-  const [bio, setBio]        = useState(me.bio||"");
-  const [interests, setInterests] = useState((me.interests||[]).join(", "));
-  const [avatar,setAvatar]   = useState(me.photos?.[0] || "");
-
-  async function save(){
+  async function save() {
     const updated = {
       ...me,
-      name: String(name||"").trim() || "User",
-      age: age? Number(age) : null,
-      gender, city, zodiac,
+      age: age ? Number(age) : undefined,
+      gender,
+      zodiac,
+      city,
       bio,
-      interests: interests.split(",").map(x=>x.trim()).filter(Boolean),
-      photos: avatar ? [avatar] : (me.photos||[])
+      interests: interests
+        .split(",")
+        .map((x: string) => x.trim())
+        .filter(Boolean),
     };
     setMe(updated);
-    try { await supabase.from('profiles').upsert(updated); } catch {}
+    try {
+      if (isAuthed) await supabase.from("profiles").upsert(updated);
+    } catch {}
   }
-  async function logout(){
+
+  async function logout() {
     await supabase.auth.signOut();
-    localStorage.removeItem('ll_uid');
+    localStorage.removeItem("ll_uid");
     window.location.reload();
+  }
+
+  async function onAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!isAuthed) return alert("Качване на аватар е достъпно след вход.");
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const { data: u } = await supabase.auth.getUser();
+      const userId = u?.user?.id;
+      if (!userId) throw new Error("No auth user");
+
+      const path = `${userId}/${Date.now()}_${file.name}`;
+      const { error: upErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+
+      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      const url = pub?.publicUrl;
+      if (!url) throw new Error("public URL not resolved");
+
+      const updated = { ...me, photos: [url] };
+      setMe(updated);
+      await supabase.from("profiles").upsert(updated);
+    } catch (e: any) {
+      alert("Грешка при качване: " + (e.message || String(e)));
+    } finally {
+      setUploading(false);
+      (e.target as any).value = "";
+    }
   }
 
   return (
     <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-4 pb-[180px] md:pb-28">
       <div className="flex items-center gap-2">
-        <UserRound className="h-5 w-5"/><div className="text-xl font-bold">Моят профил</div>
-        <button onClick={logout} className="ml-auto text-xs px-2 py-1 rounded-xl border flex items-center gap-1"><LogOut className="h-3.5 w-3.5"/> Изход</button>
+        <UserRound className="h-5 w-5" />
+        <div className="text-xl font-bold">Моят профил</div>
+        <button
+          onClick={logout}
+          className="ml-auto text-xs px-2 py-1 rounded-xl border flex items-center gap-1"
+        >
+          <LogOut className="h-3.5 w-3.5" /> Изход
+        </button>
       </div>
 
-      <div className="mt-3" style={{perspective:"1200px"}}>
-        <div className="relative h-[56vh] min-h-[380px] rounded-[28px] border overflow-hidden shadow-xl"
-             style={{ transformStyle:"preserve-3d", transform:`rotateY(${flipped?180:0}deg)`, transition:"transform 400ms" }}>
-          {/* front */}
-          <div className="absolute inset-0" style={{ backfaceVisibility:"hidden"}}>
-            <img src={avatar || me.photos?.[0]} className="absolute inset-0 w-full h-full object-cover"/>
-            <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/70"/>
+      <div className="mt-3" style={{ perspective: "1200px" }}>
+        <div
+          className="relative h-[56vh] min-h-[420px] rounded-[28px] border overflow-hidden shadow-xl"
+          style={{
+            transformStyle: "preserve-3d",
+            transform: `rotateY(${flipped ? 180 : 0}deg)`,
+            transition: "transform 400ms",
+          }}
+        >
+          {/* Front */}
+          <div className="absolute inset-0" style={{ backfaceVisibility: "hidden" }}>
+            <img
+              src={me.photos?.[0]}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/70" />
             <div className="absolute bottom-0 p-4 text-white">
-              <div className="text-2xl font-extrabold">{name || me.name}, {age || me.age}</div>
-              <div className="text-sm text-white/90">{city || me.city} · {zodiac || me.zodiac}</div>
+              <div className="text-2xl font-extrabold">
+                {me.name}
+                {age ? `, ${age}` : ""}
+              </div>
+              <div className="text-sm text-white/90">
+                {city || "—"} · {zodiac || "—"}
+              </div>
               <div className="mt-2 flex flex-wrap gap-1">
-                {(interests? interests.split(",").map(x=>x.trim()).filter(Boolean) : (me.interests||[])).slice(0,4).map((i:string,idx:number)=> (<span key={idx} className="px-2 py-1 rounded-full text-xs bg-white/80 text-neutral-800">{i}</span>))}
+                {(me.interests || []).slice(0, 4).map((i: string, idx: number) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-1 rounded-full text-xs bg-white/80 text-neutral-800"
+                  >
+                    {i}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-3">
+                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/85 text-neutral-800 cursor-pointer">
+                  <ImageIcon className="h-4 w-4" />
+                  {uploading ? "Качване…" : "Смени снимка"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={onAvatarPick}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+                </label>
+                {!isAuthed && (
+                  <span className="ml-2 text-xs text-white/80">
+                    (достъпно след вход)
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
-          {/* back */}
-          <div className="absolute inset-0 bg-white p-4 overflow-auto" style={{ transform:"rotateY(180deg)", backfaceVisibility:"hidden"}}>
+          {/* Back (Редакция) */}
+          <div
+            className="absolute inset-0 bg-white p-4 overflow-y-auto"
+            style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}
+          >
             <div className="text-sm text-neutral-500">Редакция</div>
 
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 mt-2">
               <div>
-                <label className="block text-xs text-neutral-500">Име</label>
-                <input value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full border rounded-xl p-3"/>
+                <label className="block text-xs text-neutral-500">Възраст</label>
+                <input
+                  type="number"
+                  value={age ?? ""}
+                  onChange={(e) => setAge(e.target.value ? Number(e.target.value) : undefined)}
+                  className="mt-1 w-full border rounded-xl p-2.5"
+                />
               </div>
-              <div>
-                <label className="block text-xs text-neutral-500">Години</label>
-                <input value={age} onChange={e=>setAge(e.target.value)} type="number" min={18} max={99} className="mt-1 w-full border rounded-xl p-3"/>
-              </div>
-            </div>
-
-            <div className="mt-2 grid grid-cols-3 gap-2">
               <div>
                 <label className="block text-xs text-neutral-500">Пол</label>
-                <select value={gender} onChange={e=>setGender(e.target.value)} className="mt-1 w-full border rounded-xl p-3">
-                  <option value="">—</option><option>Мъж</option><option>Жена</option>
+                <select
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="mt-1 w-full border rounded-xl p-2.5"
+                >
+                  <option value="">—</option>
+                  <option>Мъж</option>
+                  <option>Жена</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-500">Зодия</label>
+                <select
+                  value={zodiac}
+                  onChange={(e) => setZodiac(e.target.value)}
+                  className="mt-1 w-full border rounded-xl p-2.5"
+                >
+                  <option value="">—</option>
+                  {[
+                    "Овен",
+                    "Телец",
+                    "Близнаци",
+                    "Рак",
+                    "Лъв",
+                    "Дева",
+                    "Везни",
+                    "Скорпион",
+                    "Стрелец",
+                    "Козирог",
+                    "Водолей",
+                    "Риби",
+                  ].map((z) => (
+                    <option key={z}>{z}</option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="block text-xs text-neutral-500">Град</label>
-                <input value={city} onChange={e=>setCity(e.target.value)} className="mt-1 w-full border rounded-xl p-3"/>
-              </div>
-              <div>
-                <label className="block text-xs text-neutral-500">Зодия</label>
-                <select value={zodiac} onChange={e=>setZodiac(e.target.value)} className="mt-1 w-full border rounded-xl p-3">
-                  <option value="">—</option>
-                  {["Овен","Телец","Близнаци","Рак","Лъв","Дева","Везни","Скорпион","Стрелец","Козирог","Водолей","Риби"].map(z=>(<option key={z}>{z}</option>))}
-                </select>
+                <input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="mt-1 w-full border rounded-xl p-2.5"
+                />
               </div>
             </div>
-
-            <label className="block mt-3 text-xs text-neutral-500">Интереси (със запетая)</label>
-            <input value={interests} onChange={e=>setInterests(e.target.value)} className="mt-1 w-full border rounded-xl p-3"/>
 
             <label className="block mt-3 text-xs text-neutral-500">Био</label>
-            <textarea value={bio} onChange={e=>setBio(e.target.value)} className="mt-1 w-full border rounded-xl p-3" rows={4}/>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="mt-1 w-full border rounded-xl p-3"
+              rows={4}
+            />
 
-            <div className="mt-3 flex items-center gap-3">
-              <AvatarUploader me={me} onUploaded={(url)=>{ setAvatar(url); }}/>
-            </div>
+            <label className="block mt-3 text-xs text-neutral-500">
+              Интереси (разделени със запетая)
+            </label>
+            <input
+              value={interests}
+              onChange={(e) => setInterests(e.target.value)}
+              className="mt-1 w-full border rounded-xl p-3"
+            />
 
             <div className="mt-4 flex gap-2">
-              <button onClick={()=>setFlipped(false)} className="px-4 py-2 rounded-xl border">Назад</button>
-              <button onClick={()=>{ save(); setFlipped(false); }} className="px-4 py-2 rounded-xl bg-neutral-900 text-white">Запази</button>
+              <button onClick={() => setFlipped(false)} className="px-4 py-2 rounded-xl border">
+                Назад
+              </button>
+              <button
+                onClick={() => {
+                  save();
+                  setFlipped(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-neutral-900 text-white"
+              >
+                Запази
+              </button>
             </div>
           </div>
         </div>
 
         <div className="mt-3 flex items-center gap-2">
-          <button onClick={()=>setFlipped(f=>!f)} className="flex-1 px-4 py-3 rounded-2xl border">{flipped?"Виж предната страна":"Редактирай"}</button>
-          <button onClick={()=>alert("Скоро: верификация със селфи (демо)")} className="px-4 py-3 rounded-2xl bg-emerald-500 text-white">Верифицирай</button>
+          <button
+            onClick={() => setFlipped((f) => !f)}
+            className="flex-1 px-4 py-3 rounded-2xl border"
+          >
+            {flipped ? "Виж предната страна" : "Редактирай"}
+          </button>
+          <button
+            onClick={() => alert("Скоро: верификация със селфи (демо)")}
+            className="px-4 py-3 rounded-2xl bg-emerald-500 text-white"
+          >
+            Верифицирай
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ---------- Plans ----------
-function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)=>void; plan:string; setPlan:(p:string)=>void;}){
+/* ==========================
+   Plans
+   ========================== */
+function Plans({
+  coins,
+  setCoins,
+  plan,
+  setPlan,
+}: {
+  coins: number;
+  setCoins: (fn: any) => void;
+  plan: string;
+  setPlan: (p: string) => void;
+}) {
   const packs = [
-    {amt:50,  price:"4.99 лв"},
-    {amt:100, price:"7.99 лв"},
-    {amt:150, price:"10.99 лв"},
+    { amt: 50, price: "4.99 лв" },
+    { amt: 100, price: "7.99 лв" },
+    { amt: 150, price: "10.99 лв" },
   ];
   const subs = [
-    {k:"Lite",    period:"дневен",   price:"2.49 лв/ден",     perks:["Без реклами","1 Boost","Ограничено 'кой ме хареса'"]},
-    {k:"Plus",    period:"седмичен", price:"9.99 лв/седмица", perks:["Неогр. DM към приятели","3 Boost-а","Пренавиване"]},
-    {k:"Premium", period:"месечен",  price:"24.99 лв/месец",  perks:["Всички харесали те","Анонимно разглеждане","Про филтри"]},
+    {
+      k: "Lite",
+      period: "дневен",
+      price: "2.49 лв/ден",
+      perks: ["Без реклами", "1 Boost", "Ограничено 'кой ме хареса'"],
+    },
+    {
+      k: "Plus",
+      period: "седмичен",
+      price: "9.99 лв/седмица",
+      perks: ["Неогр. DM към приятели", "3 Boost-а", "Пренавиване"],
+    },
+    {
+      k: "Premium",
+      period: "месечен",
+      price: "24.99 лв/месец",
+      perks: ["Всички харесали те", "Анонимно разглеждане", "Про филтри"],
+    },
   ];
 
-  async function addCoins(amt:number){
-    setCoins((c:number)=> c + amt);
+  async function addCoins(amt: number) {
+    setCoins((c: number) => c + amt);
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const myId = userData?.user?.id || localStorage.getItem('ll_uid');
-      if (myId) await supabase.from('coin_ledger').insert({ id: uid(), user_id: myId, delta: amt, reason: 'purchase' });
+      const myId = userData?.user?.id || localStorage.getItem("ll_uid");
+      if (myId)
+        await supabase
+          .from("coin_ledger")
+          .insert({ id: uid(), user_id: myId, delta: amt, reason: "purchase" });
     } catch {}
     alert(`Добавени са ${amt} монети (демо).`);
   }
@@ -532,29 +986,60 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
     <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-4 pb-[180px] md:pb-28">
       <div className="text-xl font-bold">Монети и абонаменти</div>
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {packs.map(p=> (
-          <div key={p.amt} className="relative p-3 rounded-2xl border bg-white text-center shadow-sm">
-            <div className="mx-auto h-14 w-14 rounded-full grid place-items-center"
-              style={{ background:"radial-gradient(circle at 30% 30%, #fff7d6, #f5d34f 50%, #c99a16)", boxShadow:"inset 0 2px 6px rgba(0,0,0,0.25), 0 10px 20px rgba(0,0,0,0.08)" }}>
-              <Coins className="h-6 w-6"/>
+        {packs.map((p) => (
+          <div
+            key={p.amt}
+            className="relative p-3 rounded-2xl border bg-white text-center shadow-sm"
+          >
+            <div
+              className="mx-auto h-14 w-14 rounded-full grid place-items-center"
+              style={{
+                background:
+                  "radial-gradient(circle at 30% 30%, #fff7d6, #f5d34f 50%, #c99a16)",
+                boxShadow:
+                  "inset 0 2px 6px rgba(0,0,0,0.25), 0 10px 20px rgba(0,0,0,0.08)",
+              }}
+            >
+              <Coins className="h-6 w-6" />
             </div>
             <div className="mt-2 text-2xl font-extrabold">{p.amt}</div>
             <div className="text-xs text-neutral-500">монети</div>
             <div className="mt-1 text-sm">{p.price}</div>
-            <button onClick={()=>addCoins(p.amt)} className="mt-2 w-full px-3 py-2 rounded-xl bg-neutral-900 text-white">Купи</button>
+            <button
+              onClick={() => addCoins(p.amt)}
+              className="mt-2 w-full px-3 py-2 rounded-xl bg-neutral-900 text-white"
+            >
+              Купи
+            </button>
           </div>
         ))}
       </div>
       <div className="mt-6 grid gap-3 md:grid-cols-3">
-        {subs.map(s=> (
-          <div key={s.k} className={cn("p-4 rounded-2xl border bg-white shadow-sm", plan===s.k && "ring-2 ring-rose-400")}>
+        {subs.map((s) => (
+          <div
+            key={s.k}
+            className={cn(
+              "p-4 rounded-2xl border bg-white shadow-sm",
+              plan === s.k && "ring-2 ring-rose-400"
+            )}
+          >
             <div className="flex items-center gap-2">
-              <Crown className="h-5 w-5 text-amber-500"/><div className="font-semibold">{s.k}</div>
+              <Crown className="h-5 w-5 text-amber-500" />
+              <div className="font-semibold">{s.k}</div>
               <div className="ml-auto text-sm text-neutral-600">{s.period}</div>
             </div>
             <div className="mt-1 text-neutral-800">{s.price}</div>
-            <ul className="mt-2 space-y-1 text-sm text-neutral-600 list-disc ml-5">{s.perks.map((p,i)=>(<li key={i}>{p}</li>))}</ul>
-            <button onClick={()=>setPlan(s.k)} className="mt-3 w-full px-4 py-2 rounded-xl bg-rose-500 text-white">Избери</button>
+            <ul className="mt-2 space-y-1 text-sm text-neutral-600 list-disc ml-5">
+              {s.perks.map((p, i) => (
+                <li key={i}>{p}</li>
+              ))}
+            </ul>
+            <button
+              onClick={() => setPlan(s.k)}
+              className="mt-3 w-full px-4 py-2 rounded-xl bg-rose-500 text-white"
+            >
+              Избери
+            </button>
           </div>
         ))}
       </div>
@@ -562,168 +1047,274 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
   );
 }
 
-// ---------- Навигация ----------
-function TabBar({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void; coins:number; plan:string;}){
+/* ==========================
+   Tab Bars
+   ========================== */
+function TabBar({
+  tab,
+  setTab,
+  coins,
+  plan,
+}: {
+  tab: string;
+  setTab: (t: string) => void;
+  coins: number;
+  plan: string;
+}) {
   const tabs = [
-    {k:"discover", label:"Открий", icon: Users},
-    {k:"chat",     label:"Чат",    icon: MessageCircle},
-    {k:"profile",  label:"Профил", icon: UserRound},
-    {k:"plans",    label:"Планове",icon: Crown},
+    { k: "discover", label: "Открий", icon: Users },
+    { k: "chat", label: "Чат", icon: MessageCircle },
+    { k: "profile", label: "Профил", icon: UserRound },
+    { k: "plans", label: "Планове", icon: Crown },
   ];
   return (
     <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/80 backdrop-blur border-t border-neutral-200">
       <div className="max-w-md mx-auto px-3 py-2 flex items-center gap-2">
-        {tabs.map(t=>{ const Icon=t.icon; const active=tab===t.k; return (
-          <button key={t.k} onClick={()=>setTab(t.k)} className={cn("flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl", active && "bg-neutral-900 text-white")}>
-            <Icon className="h-5 w-5"/><span className="text-[11px] leading-none">{t.label}</span>
-          </button>
-        );})}
+        {tabs.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.k;
+          return (
+            <button
+              key={t.k}
+              onClick={() => setTab(t.k)}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl",
+                active && "bg-neutral-900 text-white"
+              )}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-[11px] leading-none">{t.label}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="max-w-md mx-auto px-4 pb-2 flex items-center justify-between text-xs text-neutral-600">
-        <div className="flex items-center gap-1"><Coins className="h-4 w-4"/> Монети: <b className="ml-1">{coins}</b></div>
-        <div>{plan?`План: ${plan}`:"Без план"}</div>
+        <div className="flex items-center gap-1">
+          <Coins className="h-4 w-4" /> Монети: <b className="ml-1">{coins}</b>
+        </div>
+        <div>{plan ? `План: ${plan}` : "Без план"}</div>
       </div>
     </div>
   );
 }
 
-function TopTabs({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void; coins:number; plan:string;}){
+function TopTabs({
+  tab,
+  setTab,
+  coins,
+  plan,
+}: {
+  tab: string;
+  setTab: (t: string) => void;
+  coins: number;
+  plan: string;
+}) {
   const tabs = [
-    {k:"discover", label:"Открий"},
-    {k:"chat",     label:"Чат"},
-    {k:"profile",  label:"Профил"},
-    {k:"plans",    label:"Планове"},
+    { k: "discover", label: "Открий" },
+    { k: "chat", label: "Чат" },
+    { k: "profile", label: "Профил" },
+    { k: "plans", label: "Планове" },
   ];
   return (
     <div className="hidden md:block bg-white/70 backdrop-blur border-b border-neutral-200">
       <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-2">
-        {tabs.map(t=> (
-          <button key={t.k} onClick={()=>setTab(t.k)} className={cn("px-3 py-1.5 rounded-xl text-sm", tab===t.k?"bg-neutral-900 text-white":"hover:bg-neutral-100")}>{t.label}</button>
+        {tabs.map((t) => (
+          <button
+            key={t.k}
+            onClick={() => setTab(t.k)}
+            className={cn(
+              "px-3 py-1.5 rounded-xl text-sm",
+              tab === t.k ? "bg-neutral-900 text-white" : "hover:bg-neutral-100"
+            )}
+          >
+            {t.label}
+          </button>
         ))}
         <div className="ml-auto flex items-center gap-3 text-sm">
-          <div className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 flex items-center gap-1"><Coins className="h-4 w-4"/>Монети: <b className="ml-1">{coins}</b></div>
-          <div className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-800">{plan?`План: ${plan}`:"Без план"}</div>
+          <div className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 flex items-center gap-1">
+            <Coins className="h-4 w-4" />
+            Монети: <b className="ml-1">{coins}</b>
+          </div>
+          <div className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-800">
+            {plan ? `План: ${plan}` : "Без план"}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ---------- Приложение ----------
-export default function LoveLinkMVP(){
+/* ==========================
+   App
+   ========================== */
+export default function LoveLinkMVP() {
   const [tab, setTab] = useState("discover");
-  const [me, setMe] = useState<any|null>(null);
-  const [coins, setCoins] = useState<number>(()=> Number(localStorage.getItem("ll_coins")||"25"));
-  const [plan, setPlan] = useState<string>(()=> localStorage.getItem("ll_plan")||"");
-  const [filters,setFilters] = useState<any>({ gender:"", city:"", zodiac:"" });
-  const [queue,setQueue] = useState<any[]>([]);
-  const [activePeer, setActivePeer] = useState<any|null>(null);
+  const [me, setMe] = useState<any | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [coins, setCoins] = useState<number>(() =>
+    Number(localStorage.getItem("ll_coins") || "25")
+  );
+  const [plan, setPlan] = useState<string>(() => localStorage.getItem("ll_plan") || "");
+  const [filters, setFilters] = useState<any>({ gender: "", city: "", zodiac: "" });
+  const [queue, setQueue] = useState<any[]>([]);
+  const [activePeer, setActivePeer] = useState<any | null>(null);
 
   // PWA SW
-  useEffect(()=>{ 
-    if('serviceWorker' in navigator){
-      navigator.serviceWorker.register(import.meta.env.BASE_URL + 'll-sw.js').catch(()=>{});
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register((import.meta.env.BASE_URL || "/") + "ll-sw.js")
+        .catch(() => {});
     }
-  },[]);
+  }, []);
 
-  // helper: ensure profile for logged user
-  async function ensureProfile(userId:string){
-    try{
-      const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-      if(!data){
-        // минимален ред
-        const userInfo = await supabase.auth.getUser();
-        const email = userInfo.data.user?.email || "user@mail.com";
-        const displayName = email.split("@")[0];
-        await supabase.from('profiles').insert({
-          id: userId,
-          name: displayName,
-          age: 25,
-          gender: "",
-          city: "",
-          zodiac: "",
-          interests: [],
-          bio: "",
-          photos: DEMO_USERS[0].photos
-        });
-      }
-    }catch{}
-  }
+  // Следим auth състояние
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted) setSession(data.session);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+    });
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
-  // Зареждане на сесия от Supabase
-  useEffect(()=>{
-    (async()=>{
-      try{
-        const { data: { session } } = await supabase.auth.getSession();
-        if(session?.user){
-          await ensureProfile(session.user.id);
-          const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-          setMe(data || {
-            id: session.user.id,
-            name: session.user.email?.split('@')[0] || 'Потребител',
-            photos: DEMO_USERS[0].photos, age: 28, gender:'', zodiac:'', city:'', interests:[], bio:''
-          });
-        }
-      }catch{}
+  // След login: гарантираме профил
+  useEffect(() => {
+    if (!session?.user) return;
+    (async () => {
+      const profile = await ensureProfileFromSessionUser(session.user);
+      setMe(profile);
     })();
-  },[]);
+  }, [session?.user?.id]);
 
-  useEffect(()=>{ localStorage.setItem('ll_coins', String(coins)); },[coins]);
-  useEffect(()=>{ if(plan) localStorage.setItem('ll_plan', plan); },[plan]);
-  usePresence(me||{});
+  // Ако няма сесия → може гост
+  useEffect(() => {
+    if (me) return;
+    const guestId = localStorage.getItem("ll_uid");
+    if (guestId) {
+      setMe({
+        id: guestId,
+        name: "Гост",
+        age: 28,
+        gender: "Мъж",
+        zodiac: "Водолей",
+        city: "София",
+        interests: ["музика", "планина", "технологии"],
+        bio: "Готов за нови запознанства.",
+        photos: [
+          "https://images.unsplash.com/photo-1544005314-2035b3c58b05?q=80&w=1200&auto=format&fit=crop",
+        ],
+        online: true,
+      });
+    }
+  }, [me]);
 
-  // Зареждане на профили (Supabase или DEMO)
-  useEffect(()=>{
-    (async()=>{
-      try{
-        const query = supabase.from('profiles').select('*').limit(50);
-        if(filters.gender) (query as any).eq('gender', filters.gender);
-        if(filters.city)   (query as any).ilike('city', `%${filters.city}%`);
-        if(filters.zodiac) (query as any).eq('zodiac', filters.zodiac);
-        const { data } = await (query as any);
-        if(data && data.length){ setQueue(data.filter(u=>u.id!==me?.id)); }
-        else {
-          setQueue(DEMO_USERS.filter(u=> (
-            (!filters.gender || u.gender===filters.gender) &&
-            (!filters.city || u.city.toLowerCase().includes(String(filters.city).toLowerCase())) &&
-            (!filters.zodiac || u.zodiac===filters.zodiac)
-          )));
-        }
-      }catch{
-        setQueue(DEMO_USERS);
+  useEffect(() => {
+    localStorage.setItem("ll_coins", String(coins));
+  }, [coins]);
+  useEffect(() => {
+    if (plan) localStorage.setItem("ll_plan", plan);
+  }, [plan]);
+
+  usePresence(me || {});
+
+  // Зареждане на профили (Supabase или DEMO), изключваме моя ID
+  useEffect(() => {
+    (async () => {
+      const q = supabase.from("profiles").select("*").limit(50) as any;
+      if (filters.gender) q.eq("gender", filters.gender);
+      if (filters.city) q.ilike("city", `%${filters.city}%`);
+      if (filters.zodiac) q.eq("zodiac", filters.zodiac);
+      const { data, error } = await q;
+      if (!error && data?.length) {
+        setQueue(data.filter((p: any) => p.id !== me?.id));
+      } else {
+        setQueue(
+          DEMO_USERS.filter(
+            (u) =>
+              (!filters.gender || u.gender === filters.gender) &&
+              (!filters.city ||
+                u.city.toLowerCase().includes(String(filters.city).toLowerCase())) &&
+              (!filters.zodiac || u.zodiac === filters.zodiac)
+          ).filter((u) => u.id !== me?.id)
+        );
       }
     })();
-  },[filters, me?.id]);
+  }, [filters, me?.id]);
 
   // Действия
-  async function like(u:any){
-    setQueue(q=>q.slice(1));
-    try { if(me?.id){ await supabase.from('likes').insert({ id: uid(), from_id: me.id, to_id: u.id }); } } catch {}
-    try { if(me?.id){ const { data } = await supabase.from('likes').select('id').eq('from_id', u.id).eq('to_id', me.id).limit(1); if(data && data.length) alert(`It's a match! Ти и ${u.name} се харесахте.`); } } catch {}
+  async function like(u: any) {
+    setQueue((q) => q.slice(1));
+    try {
+      if (session?.user?.id) {
+        await supabase.from("likes").insert({ id: uid(), from_id: me!.id, to_id: u.id });
+        const { data } = await supabase
+          .from("likes")
+          .select("id")
+          .eq("from_id", u.id)
+          .eq("to_id", me!.id)
+          .limit(1);
+        if (data && data.length) alert(`It's a match! Ти и ${u.name} се харесахте.`);
+      }
+    } catch {}
   }
-  function nope(u:any){ setQueue(q=>q.slice(1)); }
-  function message(u:any){ setTab('chat'); setActivePeer(u); }
+  function nope(u: any) {
+    setQueue((q) => q.slice(1));
+  }
+  function message(u: any) {
+    setTab("chat");
+    setActivePeer(u);
+  }
 
-  if(!me){ return <AuthGate setMe={setMe}/>; }
+  if (!me) return <AuthGate setMe={setMe} />;
 
   const current = queue[0];
+  const isAuthed = Boolean(session?.user?.id);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(135deg,#fff6f7,#eef3ff)] text-neutral-900">
       <div className="sticky top-0 z-30 bg-white/70 backdrop-blur border-b border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-2">
-          <Star className="h-5 w-5 text-rose-500"/>
-          <div className="text-sm">Здравей, <b>{me.name}</b>!</div>
-          <div className="ml-auto text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">{plan||"Без план"}</div>
+          <Star className="h-5 w-5 text-rose-500" />
+          <div className="text-sm">
+            Здравей, <b>{me.name}</b>!
+          </div>
+          <div className="ml-auto text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
+            {plan || "Без план"}
+          </div>
         </div>
       </div>
 
       <TopTabs tab={tab} setTab={setTab} coins={coins} plan={plan} />
 
-      {tab==="discover" && <Discover queue={queue} like={like} nope={nope} message={message} filters={filters} setFilters={setFilters}/>}
-      {tab==="chat" && (activePeer? <DirectChat me={me} peer={activePeer}/> : <GlobalChat me={me} roomId="global"/> )}
-      {tab==="profile" && <Profile me={me} setMe={setMe}/>}
-      {tab==="plans" && <Plans coins={coins} setCoins={setCoins as any} plan={plan} setPlan={setPlan}/>}
+      {tab === "discover" && (
+        <Discover
+          queue={queue}
+          like={like}
+          nope={nope}
+          message={message}
+          filters={filters}
+          setFilters={setFilters}
+        />
+      )}
+
+      {tab === "chat" &&
+        (activePeer ? (
+          <DirectChat me={me} peer={activePeer} />
+        ) : (
+          <GlobalChat me={me} roomId="global" />
+        ))}
+
+      {tab === "profile" && <Profile me={me} setMe={setMe} isAuthed={isAuthed} />}
+
+      {tab === "plans" && (
+        <Plans coins={coins} setCoins={setCoins as any} plan={plan} setPlan={setPlan} />
+      )}
 
       <ActionDock
         visible={tab === "discover" && !!current}
@@ -732,11 +1323,48 @@ export default function LoveLinkMVP(){
         onLike={() => current && like(current)}
       />
 
-      <TabBar tab={tab} setTab={setTab} coins={coins} plan={plan}/>
+      <TabBar tab={tab} setTab={setTab} coins={coins} plan={plan} />
 
       <footer className="mt-16 py-8 text-center text-xs text-neutral-500">
-        © {new Date().getFullYear()} LoveLink · 3D Mobile/Desktop MVP · Supabase Ready · PWA-ready
+        © {new Date().getFullYear()} LoveLink · 3D Mobile/Desktop MVP · Supabase Ready ·
+        PWA-ready
       </footer>
     </div>
   );
+}
+
+/* =====================================================
+   Helpers
+   ===================================================== */
+async function ensureProfileFromSessionUser(user: User) {
+  // опит за fetch
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  if (!error && data) return data;
+
+  // липсва → създаваме минимален профил
+  const display =
+    (user.user_metadata as any)?.full_name ||
+    (user.user_metadata as any)?.name ||
+    user.email?.split("@")[0] ||
+    "User";
+
+  const avatar =
+    (user.user_metadata as any)?.avatar_url ||
+    (user.user_metadata as any)?.picture ||
+    DEMO_USERS[0].photos[0];
+
+  const newProfile = {
+    id: user.id,
+    name: display,
+    photos: [avatar],
+    age: 28,
+    gender: "",
+    zodiac: "",
+    city: "",
+    interests: [],
+    bio: "",
+    created_at: new Date().toISOString(),
+  };
+  await supabase.from("profiles").upsert(newProfile);
+  return newProfile;
 }
