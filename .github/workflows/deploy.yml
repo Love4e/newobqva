@@ -17,44 +17,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'   # това НЕ изисква lock файл
+          node-version: '20'     # НЕ използваме bahmutov
+          cache: 'npm'
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v5
 
-      # ВАЖНО: без bahmutov/npm-install и без `npm ci`
-      - name: Install
+      - name: Install (no lock file)
         run: npm install --no-audit --no-fund
-
-      # Ако манифестът липсва, го създаваме (за да няма 404)
-      - name: Ensure manifest.webmanifest
-        run: |
-          mkdir -p public
-          [ -f public/manifest.webmanifest ] || cat > public/manifest.webmanifest <<'JSON'
-          {
-            "name": "LoveLink",
-            "short_name": "LoveLink",
-            "start_url": "/lovelink-mvp/",
-            "scope": "/lovelink-mvp/",
-            "display": "standalone",
-            "background_color": "#ffffff",
-            "theme_color": "#ffffff",
-            "icons": [
-              {
-                "src": "/lovelink-mvp/favicon.ico",
-                "sizes": "48x48 72x72 96x96 144x144 192x192 256x256 384x384 512x512",
-                "type": "image/x-icon"
-              }
-            ]
-          }
-          JSON
 
       - name: Build
         env:
@@ -62,12 +34,10 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
-      # SPA fallback: 404.html = билднатият index.html
       - name: Copy SPA fallback
         run: cp dist/index.html dist/404.html
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
