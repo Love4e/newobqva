@@ -29,7 +29,6 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      # Инсталация без lock файл
       - name: Install
         run: npm install --no-audit --no-fund
 
@@ -39,7 +38,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
-      # SPA fallback: 404.html = билднат index.html
+      # ВАЖНО: 404.html = билднатият index.html (SPA fallback)
       - name: Copy SPA fallback
         run: cp dist/index.html dist/404.html
 
