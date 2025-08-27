@@ -18,21 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # >>> една от двете стъпки по-горе <<<
+      # Инсталация БЕЗ lock файл
       - name: Install (no lock file)
         run: npm install --no-audit --no-fund
-      # или
-      # - name: Install (no lock file)
-      #   uses: bahmutov/npm-install@v1
-      #   with:
-      #     useLockFile: false
-      #     install-command: npm install --no-audit --no-fund
 
       - name: Build
         env:
