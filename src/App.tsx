@@ -9,10 +9,9 @@ import { createClient, Session } from "@supabase/supabase-js";
 
 /* =====================================================
    LoveLink — MVP (Supabase + PWA + OAuth Google only)
-   ВХОДЪТ Е ОПРАВЕН: PKCE + exchangeCodeForSession
+   ВХОД: PKCE + exchangeCodeForSession + redirectTo към BASE_URL
    ===================================================== */
 
-/** 1) Конфигурация на Supabase (ползваш твоите). */
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ||
   "https://gazaegcwedqiyaefkgsr.supabase.co";
@@ -21,7 +20,7 @@ const SUPABASE_ANON_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhemFlZ2N3ZWRxaXlhZWZrZ3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNDU3NzYsImV4cCI6MjA3MTcyMTc3Nn0.DCz7PhdKzQiOGgQwjgZ3JdOS4LfB-Bmb32VatfRsHB8";
 
-/** ВАЖНО: flowType: 'pkce' заради GH Pages/HashRouter. */
+/** ВАЖНО: flowType: 'pkce' */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     flowType: "pkce",
@@ -31,7 +30,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 });
 
-/** Демо профили (ако в таблица profiles няма данни). */
 const DEMO_USERS = [
   { id:"u1", name:"Ива",   age:27, gender:"Жена", zodiac:"Везни", city:"София",
     interests:["йога","кино","планина"],
@@ -115,7 +113,7 @@ function DockBtn({
 }
 
 /* ============== AUTH ============== */
-/** >>> Само Google вход (PKCE) – БЕЗ redirectTo <<< */
+/** Само Google вход (PKCE) – с точен redirect към BASE_URL */
 function AuthGate({ setMe }: { setMe: (v: any) => void }) {
   const [loading, setLoad] = useState(false);
   const [err, setErr] = useState("");
@@ -123,12 +121,21 @@ function AuthGate({ setMe }: { setMe: (v: any) => void }) {
   async function signInGoogle() {
     try {
       setLoad(true); setErr("");
-      // Без redirectTo → Supabase ще ползва текущия URL (по-надеждно за GitHub Pages)
+
+      // Абсолютен URL към /lovelink-mvp/ (Vite BASE_URL)
+      const redirectTo = new URL(
+        import.meta.env.BASE_URL || "/",
+        window.location.origin
+      ).toString();
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { queryParams: { prompt: "select_account" } },
+        options: {
+          redirectTo,
+          queryParams: { prompt: "select_account" },
+        },
       });
-      if (error) throw error; // ще последва redirect
+      if (error) throw error; // Supabase ще пренасочи
     } catch (e: any) {
       setErr(e.message || String(e));
       setLoad(false);
@@ -318,7 +325,7 @@ function GlobalChat({ roomId, me }: { roomId: string; me: any }) {
   }
 
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl-max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
       <div className="text-xl font-bold">Обща чат стая</div>
       <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
         {messages.map((m: any) => (
@@ -552,7 +559,7 @@ export default function LoveLinkMVP() {
     }
   }, []);
 
-  // >>> 0) Довършване на PKCE колбек (ако сме се върнали от Google)
+  // Довършване на PKCE при връщане
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get("code")) {
@@ -564,7 +571,7 @@ export default function LoveLinkMVP() {
     }
   }, []);
 
-  // 1) Вземи сесията (ако вече има такава)
+  // Сесия
   useEffect(() => {
     let mounted = true;
 
@@ -591,13 +598,12 @@ export default function LoveLinkMVP() {
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, []);
 
-  // локално съхранение
   useEffect(() => { localStorage.setItem("ll_coins", String(coins)); }, [coins]);
   useEffect(() => { if (plan) localStorage.setItem("ll_plan", plan); }, [plan]);
 
   usePresence(me || {});
 
-  // Зареди профили (Supabase или DEMO) при промяна на филтри
+  // Зареждане на профили
   useEffect(() => {
     (async () => {
       const query = supabase.from("profiles").select("*").limit(50);
@@ -708,7 +714,7 @@ function DirectChat({ me, peer }: { me: any; peer: any }) {
   }
 
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl-max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
       <div className="flex items-center gap-2"><UserRound className="h-5 w-5" /><div className="text-xl font-bold">Чат с {peer.name}</div></div>
       <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
         {messages.map((m: any) => (
@@ -720,7 +726,7 @@ function DirectChat({ me, peer }: { me: any; peer: any }) {
               "px-3 py-2 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.08)]",
               m.from_id === me.id ? "bg-neutral-900 text-white skew-y-[-2deg]" : "bg-neutral-100 skew-y-[2deg]"
             )}>
-              {m.text}
+              {м.text}
             </div>
           </div>
         ))}
