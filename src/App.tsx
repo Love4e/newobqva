@@ -30,6 +30,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 });
 
+/* ---------- Helpers ---------- */
 const DEMO_USERS = [
   { id:"u1", name:"Ива",   age:27, gender:"Жена", zodiac:"Везни", city:"София",
     interests:["йога","кино","планина"],
@@ -144,9 +145,22 @@ function AuthGate({ setMe }: { setMe: (v: any) => void }) {
 
   // Ако провайдърът е върнал грешка в URL-а – покажи я
   useEffect(() => {
-    const u = new URL(window.location.href);
-    const desc = u.searchParams.get("error_description");
-    if (desc) setErr(decodeURIComponent(desc));
+    const tryGetErr = () => {
+      const u = new URL(window.location.href);
+      const fromQuery = u.searchParams.get("error_description");
+      if (fromQuery) return decodeURIComponent(fromQuery);
+
+      const hash = u.hash.startsWith("#") ? u.hash.slice(1) : u.hash;
+      if (hash) {
+        const qs = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "";
+        const hp = new URLSearchParams(qs);
+        const fromHash = hp.get("error_description");
+        if (fromHash) return decodeURIComponent(fromHash);
+      }
+      return "";
+    };
+    const d = tryGetErr();
+    if (d) setErr(d);
   }, []);
 
   return (
@@ -251,7 +265,7 @@ function Discover({
     <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-4 pb-[180px] md:pb-28">
       <div className="sticky top-0 z-10 -mx-4 px-4 pb-3 bg-gradient-to-b from-white to-transparent">
         <div className="flex items-center gap-2">
-          <div className="text-xl font-extrabold tracking-tight flex itemsички gap-2">
+          <div className="text-xl font-extrabold tracking-tight flex items-center gap-2">
             <Flame className="h-5 w-5 text-rose-500" /> LoveLink
           </div>
           <button onClick={() => alert("Скоро: speed chatting вечер, 20:00 (демо)")}
@@ -444,7 +458,7 @@ function Plans({
       const myId = userData?.user?.id;
       if (myId) await supabase.from("coin_ledger").insert({ id: uid(), user_id: myId, delta: amt, reason: "purchase" });
     } catch {}
-    alert(`Добавени са ${amt} монети (демо).`);
+  alert(`Добавени са ${amt} монети (демо).`);
   }
 
   return (
@@ -566,17 +580,43 @@ export default function LoveLinkMVP() {
     }
   }, []);
 
-  // Довършване на PKCE при връщане (и чистене на query-то)
+  // >>> НАДЕЖДНО довършване на PKCE (поддържа ?code=... и #/?code=...)
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get("code")) {
-      supabase.auth.exchangeCodeForSession(window.location.href).finally(() => {
-        url.searchParams.delete("code");
-        url.searchParams.delete("state");
-        url.searchParams.delete("error");
-        url.searchParams.delete("error_description");
-        window.history.replaceState({}, "", url.toString());
-      });
+
+    const finishAndClean = () => {
+      const base = new URL(import.meta.env.BASE_URL || "/", window.location.origin).toString();
+      window.history.replaceState({}, "", base);
+    };
+
+    // 1) опитай да вземеш от query
+    let code = url.searchParams.get("code");
+    let state = url.searchParams.get("state");
+
+    // 2) ако няма, пробвай hash варианта
+    if (!code) {
+      const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+      if (hash) {
+        const qs = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "";
+        if (qs) {
+          const hp = new URLSearchParams(qs);
+          code = hp.get("code") || undefined;
+          state = hp.get("state") || undefined;
+        }
+      }
+    }
+
+    if (code) {
+      // Supabase иска пълен URL с code/state в query-то
+      const reconstructed =
+        `${url.origin}${url.pathname}?code=${encodeURIComponent(code)}${state ? `&state=${encodeURIComponent(state)}` : ""}`;
+
+      supabase.auth
+        .exchangeCodeForSession(reconstructed)
+        .catch(() => {})
+        .finally(() => {
+          finishAndClean(); // изчисти адресната лента
+        });
     }
   }, []);
 
