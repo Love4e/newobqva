@@ -97,23 +97,10 @@ function DockBtn({
 }
 
 /* ============== AUTH ============== */
+/* >>> Опростено: само вход с Google <<< */
 function AuthGate({setMe}:{setMe:(v:any)=>void}){
-  const [email,setEmail]   = useState("");
   const [loading,setLoad]  = useState(false);
   const [err,setErr]       = useState("");
-
-  async function signInEmail(){
-    try{
-      setLoad(true); setErr("");
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options:{ emailRedirectTo: window.location.href }
-      });
-      if(error) throw error;
-      alert("Изпратихме код/линк към имейла ти.");
-    }catch(e:any){ setErr(e.message||String(e)); }
-    finally{ setLoad(false); }
-  }
 
   async function signInGoogle(){
     try{
@@ -122,22 +109,8 @@ function AuthGate({setMe}:{setMe:(v:any)=>void}){
         provider: "google",
         options: { redirectTo: window.location.href, queryParams: { prompt: "select_account" } }
       });
-      if (error) throw error;
-      // redirect ще се случи автоматично от Supabase
+      if (error) throw error; // Supabase ще направи redirect
     }catch(e:any){ setErr(e.message||String(e)); setLoad(false); }
-  }
-
-  function continueGuest(){
-    const demo = {
-      id: localStorage.getItem("ll_uid") || uid(),
-      name: "Гост", age: 28, gender: "Мъж", zodiac:"Водолей", city:"София",
-      interests:["музика","планина","технологии"],
-      bio:"Готов за нови запознанства.",
-      photos:["https://images.unsplash.com/photo-1544005314-2035b3c58b05?q=80&w=1200&auto=format&fit=crop"],
-      online:true
-    };
-    localStorage.setItem("ll_uid", demo.id);
-    setMe(demo);
   }
 
   return (
@@ -148,35 +121,13 @@ function AuthGate({setMe}:{setMe:(v:any)=>void}){
         </div>
         <div className="mt-1 text-sm text-neutral-600">Вход/регистрация</div>
 
-        <label className="block mt-4 text-xs text-neutral-500">Имейл</label>
-        <input
-          value={email}
-          onChange={e=>setEmail(e.target.value)}
-          placeholder="you@email.com"
-          className="mt-1 w-full border rounded-xl p-3"
-        />
-        <button
-          onClick={signInEmail}
-          disabled={loading}
-          className="mt-3 w-full px-4 py-3 rounded-2xl bg-neutral-900 text-white flex items-center justify-center gap-2"
-        >
-          {loading && <Loader2 className="h-4 w-4 animate-spin"/>} Получи код на имейл
-        </button>
-
-        <div className="mt-3 text-xs text-neutral-500 text-center">или</div>
-
-        {/* Вход с Google (Gmail) */}
         <button
           onClick={signInGoogle}
           disabled={loading}
-          className="mt-2 w-full px-4 py-3 rounded-2xl border flex items-center justify-center gap-2"
+          className="mt-5 w-full px-4 py-3 rounded-2xl border flex items-center justify-center gap-2"
         >
-          <Chrome className="h-4 w-4 text-rose-500" />
+          {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Chrome className="h-4 w-4 text-rose-500" />}
           Вход с Google
-        </button>
-
-        <button onClick={continueGuest} className="mt-2 w-full px-4 py-3 rounded-2xl border">
-          Продължи като гост
         </button>
 
         {err && <div className="mt-3 text-sm text-rose-600">{err}</div>}
@@ -377,7 +328,7 @@ function DirectChat({me, peer}:{me:any; peer:any;}){
       <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
         {messages.map((m:any)=> (
           <div key={m.id} className={cn("max-w-[82%]", m.from_id===me.id?"ml-auto":"")}>
-            <div className="text-[10px] text-neutral-500 mb-1">{m.from_id===me.id?"Ти":peer.name} · {new Date(m.created_at).toLocaleTimeString()}</div>
+            <div className="text-[10px] text-neutral-500 mb-1">{м.from_id===me.id?"Ти":peer.name} · {new Date(m.created_at).toLocaleTimeString()}</div>
             <div className={cn("px-3 py-2 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.08)]", m.from_id===me.id?"bg-neutral-900 text-white skew-y-[-2deg]":"bg-neutral-100 skew-y-[2deg]")}>{m.text}</div>
           </div>
         ))}
@@ -403,7 +354,6 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
   }
   async function logout(){
     await supabase.auth.signOut();
-    localStorage.removeItem('ll_uid');
     window.location.reload();
   }
 
@@ -423,7 +373,7 @@ function Profile({me, setMe}:{me:any; setMe:(v:any)=>void;}){
               <div className="text-2xl font-extrabold">{me.name}, {me.age}</div>
               <div className="text-sm text-white/90">{me.city} · {me.zodiac}</div>
               <div className="mt-2 flex flex-wrap gap-1">
-                {(me.interests||[]).slice(0,4).map((i:string,idx:number)=> (<span key={idx} className="px-2 py-1 rounded-full text-xs bg-white/80 text-neutral-800">{i}</span>))}
+                {(ме.interests||[]).slice(0,4).map((i:string,idx:number)=> (<span key={idx} className="px-2 py-1 rounded-full text-xs bg-white/80 text-neutral-800">{i}</span>))}
               </div>
             </div>
           </div>
@@ -465,7 +415,7 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
     setCoins((c:number)=> c + amt);
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const myId = userData?.user?.id || localStorage.getItem('ll_uid');
+      const myId = userData?.user?.id;
       if (myId) await supabase.from('coin_ledger').insert({ id: uid(), user_id: myId, delta: amt, reason: 'purchase' });
     } catch {}
     alert(`Добавени са ${amt} монети (демо).`);
@@ -476,7 +426,7 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
       <div className="text-xl font-bold">Монети и абонаменти</div>
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         {packs.map(p=> (
-          <div key={p.amt} className="relative p-3 rounded-2xl border bg-white text-center shadow-sm">
+          <div key={п.amt} className="relative p-3 rounded-2xl border bg-white text-center shadow-sm">
             <div className="mx-auto h-14 w-14 rounded-full grid place-items-center"
               style={{ background:"radial-gradient(circle at 30% 30%, #fff7d6, #f5d34f 50%, #c99a16)", boxShadow:"inset 0 2px 6px rgba(0,0,0,0.25), 0 10px 20px rgba(0,0,0,0.08)" }}>
               <Coins className="h-6 w-6"/>
@@ -490,7 +440,7 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
       </div>
       <div className="mt-6 grid gap-3 md:grid-cols-3">
         {subs.map(s=> (
-          <div key={s.k} className={cn("p-4 rounded-2xl border bg-white shadow-sm", plan===s.k && "ring-2 ring-rose-400")}>
+          <div key={s.k} className={cn("п-4 rounded-2xl border bg-white shadow-sm", plan===s.k && "ring-2 ring-rose-400")}>
             <div className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-amber-500"/><div className="font-semibold">{s.k}</div>
               <div className="ml-auto text-sm text-neutral-600">{s.period}</div>
@@ -508,13 +458,13 @@ function Plans({coins, setCoins, plan, setPlan}:{coins:number; setCoins:(fn:any)
 /* =========== Навигация =========== */
 function TabBar({tab, setTab, coins, plan}:{tab:string; setTab:(t:string)=>void; coins:number; plan:string;}){
   const tabs = [
-    {k:"discover", label:"Открий", icon: MessageCircle}, // визуално – същата височина
+    {k:"discover", label:"Открий", icon: MessageCircle},
     {k:"chat",     label:"Чат",    icon: MessageCircle},
     {k:"profile",  label:"Профил", icon: UserRound},
     {k:"plans",    label:"Планове",icon: Crown},
   ];
   return (
-    <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/80 backdrop-blur border-t border-neutral-200">
+    <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/80 backdrop-blur border-т border-neutral-200">
       <div className="max-w-md mx-auto px-3 py-2 flex items-center gap-2">
         {tabs.map(t=>{ const Icon=t.icon; const active=tab===t.k; return (
           <button key={t.k} onClick={()=>setTab(t.k)} className={cn("flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl", active && "bg-neutral-900 text-white")}>
@@ -571,7 +521,7 @@ export default function LoveLinkMVP(){
     }
   },[]);
 
-  // Зареждане на сесия от Supabase (email / Google OAuth)
+  // Зареждане на сесия от Supabase (Google OAuth)
   useEffect(()=>{
     (async()=>{
       const { data: { session } } = await supabase.auth.getSession();
@@ -631,7 +581,7 @@ export default function LoveLinkMVP(){
         <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-2">
           <Star className="h-5 w-5 text-rose-500"/>
           <div className="text-sm">Здравей, <b>{me.name}</b>!</div>
-          <div className="ml-auto text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">{plan||"Без план"}</div>
+          <div className="ml-auto text-xs px-2 py-1 rounded-full bg-емералд-100 text-emerald-700">{plan||"Без план"}</div>
         </div>
       </div>
 
