@@ -1,16 +1,10 @@
 {
-  "name": "LoveLink",
+  "name": "LoveLink MVP",
   "short_name": "LoveLink",
   "start_url": "/lovelink-mvp/",
   "scope": "/lovelink-mvp/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
-  "icons": [
-    {
-      "src": "/lovelink-mvp/favicon.ico",
-      "sizes": "48x48 72x72 96x96 144x144 192x192 256x256 384x384 512x512",
-      "type": "image/x-icon"
-    }
-  ]
+  "theme_color": "#111111",
+  "icons": []
 }
