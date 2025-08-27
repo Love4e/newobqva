@@ -1,48 +1,58 @@
 name: Deploy
-
 on:
   push:
-    branches: [ "main" ]
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # или node-version-file: '.nvmrc'
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install deps
-        run: npm install --no-fund --no-audit
+      - name: Debug info
+        run: |
+          node -v
+          npm -v
+          jq -r '.scripts' package.json || true
 
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      # Ако е CRA, CI=false за да не падне на warning
       - name: Build
+        env:
+          CI: false  # махни ако не е CRA
+          # Примери за env, ако трябват:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: npm run build
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: dist
+          name: web-build
+          path: |
+            dist
+            build
+            out
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    if: needs.build.result == 'success'
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: builddir
+
+      # TODO: сложи реалния си деплой (GitHub Pages, FTP, rsync, Vercel CLI и т.н.)
+      - name: Deploy (placeholder)
+        run: echo "Deploy from ./builddir"
