@@ -18,19 +18,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install
+
+      - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then
             npm ci --no-audit --no-fund
           else
             npm i --no-audit --no-fund
           fi
+
       - name: Build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
