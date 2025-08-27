@@ -24,19 +24,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'npm'   # това НЕ изисква lock файл
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      # ВАЖНО: без bahmutov/npm-install и без `npm ci`
       - name: Install
         run: npm install --no-audit --no-fund
 
-      # гарантираме, че има манифест
+      # Ако манифестът липсва, го създаваме (за да няма 404)
       - name: Ensure manifest.webmanifest
         run: |
           mkdir -p public
-          cat > public/manifest.webmanifest <<'JSON'
+          [ -f public/manifest.webmanifest ] || cat > public/manifest.webmanifest <<'JSON'
           {
             "name": "LoveLink",
             "short_name": "LoveLink",
@@ -61,13 +62,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
-      # диагностика + SPA fallback
-      - name: Debug dist contents
-        run: |
-          echo "----- dist/ -----"; ls -la dist
-          echo "----- head index.html -----"; head -n 30 dist/index.html || true
-          grep -q "assets/" dist/index.html || (echo "ERROR: index.html не сочи към assets/" && exit 1)
-
+      # SPA fallback: 404.html = билднатият index.html
       - name: Copy SPA fallback
         run: cp dist/index.html dist/404.html
 
