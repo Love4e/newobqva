@@ -20,7 +20,7 @@ const SUPABASE_ANON_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhemFlZ2N3ZWRxaXlhZWZrZ3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNDU3NzYsImV4cCI6MjA3MTcyMTc3Nn0.DCz7PhdKzQiOGgQwjgZ3JdOS4LfB-Bmb32VatfRsHB8";
 
-/** ВАЖНО: flowType: 'pkce' */
+/** ВАЖНО: flowType: 'pkce' (PKCE работи коректно с HashRouter/GitHub Pages) */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     flowType: "pkce",
@@ -122,7 +122,7 @@ function AuthGate({ setMe }: { setMe: (v: any) => void }) {
     try {
       setLoad(true); setErr("");
 
-      // Абсолютен URL към /lovelink-mvp/ (Vite BASE_URL)
+      // Абсолютен URL към базовия подпът (напр. https://<user>.github.io/lovelink-mvp/)
       const redirectTo = new URL(
         import.meta.env.BASE_URL || "/",
         window.location.origin
@@ -141,6 +141,13 @@ function AuthGate({ setMe }: { setMe: (v: any) => void }) {
       setLoad(false);
     }
   }
+
+  // Ако провайдърът е върнал грешка в URL-а – покажи я
+  useEffect(() => {
+    const u = new URL(window.location.href);
+    const desc = u.searchParams.get("error_description");
+    if (desc) setErr(decodeURIComponent(desc));
+  }, []);
 
   return (
     <div className="min-h-[80vh] grid place-items-center p-6 bg-[radial-gradient(ellipse_at_top,_#ffe4ea,_#eef3ff)]">
@@ -244,7 +251,7 @@ function Discover({
     <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-4 pb-[180px] md:pb-28">
       <div className="sticky top-0 z-10 -mx-4 px-4 pb-3 bg-gradient-to-b from-white to-transparent">
         <div className="flex items-center gap-2">
-          <div className="text-xl font-extrabold tracking-tight flex items-center gap-2">
+          <div className="text-xl font-extrabold tracking-tight flex itemsички gap-2">
             <Flame className="h-5 w-5 text-rose-500" /> LoveLink
           </div>
           <button onClick={() => alert("Скоро: speed chatting вечер, 20:00 (демо)")}
@@ -306,7 +313,7 @@ function GlobalChat({ roomId, me }: { roomId: string; me: any }) {
         .eq("room_id", roomId)
         .order("created_at", { ascending: true })
         .limit(200);
-      if (!stop && data) setMessages(data);
+      if (!stop && data) setMessages(data || []);
       const ch = supabase
         .channel(`room:${roomId}`)
         .on("postgres_changes",
@@ -325,7 +332,7 @@ function GlobalChat({ roomId, me }: { roomId: string; me: any }) {
   }
 
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl-max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
       <div className="text-xl font-bold">Обща чат стая</div>
       <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
         {messages.map((m: any) => (
@@ -559,42 +566,53 @@ export default function LoveLinkMVP() {
     }
   }, []);
 
-  // Довършване на PKCE при връщане
+  // Довършване на PKCE при връщане (и чистене на query-то)
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get("code")) {
       supabase.auth.exchangeCodeForSession(window.location.href).finally(() => {
         url.searchParams.delete("code");
         url.searchParams.delete("state");
+        url.searchParams.delete("error");
+        url.searchParams.delete("error_description");
         window.history.replaceState({}, "", url.toString());
       });
     }
   }, []);
 
-  // Сесия
+  // Сесия + реакция на промяна на auth състоянието
   useEffect(() => {
     let mounted = true;
 
-    async function handleSession(session: Session | null) {
+    async function setFromSession(session: Session | null) {
       if (!mounted) return;
       if (session?.user) {
         const user = session.user;
-        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-        setMe(
-          data || {
+        try {
+          const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+          setMe(
+            data || {
+              id: user.id,
+              name: user.email?.split("@")[0] || "Потребител",
+              photos: DEMO_USERS[0].photos,
+              age: 28, gender: "", zodiac: "", city: "", interests: [], bio: "",
+            }
+          );
+        } catch {
+          setMe({
             id: user.id,
             name: user.email?.split("@")[0] || "Потребител",
             photos: DEMO_USERS[0].photos,
             age: 28, gender: "", zodiac: "", city: "", interests: [], bio: "",
-          }
-        );
+          });
+        }
       } else {
         setMe(null);
       }
     }
 
-    supabase.auth.getSession().then(({ data }) => handleSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
+    supabase.auth.getSession().then(({ data }) => setFromSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => setFromSession(session));
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, []);
 
@@ -695,7 +713,7 @@ function DirectChat({ me, peer }: { me: any; peer: any }) {
         .eq("room_id", roomId)
         .order("created_at", { ascending: true })
         .limit(200);
-      if (!stop && data) setMessages(data);
+      if (!stop && data) setMessages(data || []);
       const ch = supabase
         .channel(`dm:${roomId}`)
         .on("postgres_changes",
@@ -714,7 +732,7 @@ function DirectChat({ me, peer }: { me: any; peer: any }) {
   }
 
   return (
-    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl-max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
+    <div className="max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto pt-4 px-3 pb-[180px] md:pb-28">
       <div className="flex items-center gap-2"><UserRound className="h-5 w-5" /><div className="text-xl font-bold">Чат с {peer.name}</div></div>
       <div ref={scRef} className="mt-3 h-[65vh] rounded-3xl border bg-white overflow-y-auto p-3 space-y-3">
         {messages.map((m: any) => (
@@ -726,7 +744,7 @@ function DirectChat({ me, peer }: { me: any; peer: any }) {
               "px-3 py-2 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.08)]",
               m.from_id === me.id ? "bg-neutral-900 text-white skew-y-[-2deg]" : "bg-neutral-100 skew-y-[2deg]"
             )}>
-              {м.text}
+              {m.text}
             </div>
           </div>
         ))}
