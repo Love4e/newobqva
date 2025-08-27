@@ -2,6 +2,16 @@ name: Deploy
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -9,50 +19,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          # или node-version-file: '.nvmrc'
           node-version: '20'
           cache: 'npm'
 
-      - name: Debug info
-        run: |
-          node -v
-          npm -v
-          jq -r '.scripts' package.json || true
+      # НЕ изискваме lock файл
+      - name: Install (no lock file)
+        run: npm install --no-audit --no-fund
 
-      - name: Install
-        run: npm ci --no-audit --no-fund
-
-      # Ако е CRA, CI=false за да не падне на warning
       - name: Build
         env:
-          CI: false  # махни ако не е CRA
-          # Примери за env, ако трябват:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: web-build
-          path: |
-            dist
-            build
-            out
+          path: dist   # Vite build output
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: needs.build.result == 'success'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: web-build
-          path: builddir
-
-      # TODO: сложи реалния си деплой (GitHub Pages, FTP, rsync, Vercel CLI и т.н.)
-      - name: Deploy (placeholder)
-        run: echo "Deploy from ./builddir"
+      - id: deployment
+        uses: actions/deploy-pages@v4
