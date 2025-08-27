@@ -5,14 +5,14 @@ import {
   Heart, X, MessageCircle, UserRound, Coins, Crown,
   Flame, Star, ShieldCheck, Loader2, LogOut, Chrome
 } from "lucide-react";
-import { createClient, Session, User } from "@supabase/supabase-js";
+import { createClient, Session } from "@supabase/supabase-js";
 
 /* =====================================================
    LoveLink — MVP (Supabase + PWA + OAuth Google only)
+   ВХОДЪТ Е ОПРАВЕН: PKCE + redirect към /lovelink-mvp/
    ===================================================== */
 
-/** 1) Конфигурация на Supabase.
- *  Ползвам твоите стойности като fallback, а ако имаш .env — ще ги вземе от там. */
+/** 1) Конфигурация на Supabase (ползваш твоите). */
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ||
   "https://gazaegcwedqiyaefkgsr.supabase.co";
@@ -21,9 +21,17 @@ const SUPABASE_ANON_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhemFlZ2N3ZWRxaXlhZWZrZ3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNDU3NzYsImV4cCI6MjA3MTcyMTc3Nn0.DCz7PhdKzQiOGgQwjgZ3JdOS4LfB-Bmb32VatfRsHB8";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/** ВАЖНО: flowType: 'pkce' заради HashRouter/GH Pages */
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    flowType: "pkce",
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 
-/** Демо профили (ако в таблица profiles няма нищо). */
+/** Демо профили (ако в таблица profiles няма данни). */
 const DEMO_USERS = [
   { id:"u1", name:"Ива",   age:27, gender:"Жена", zodiac:"Везни", city:"София",
     interests:["йога","кино","планина"],
@@ -107,7 +115,7 @@ function DockBtn({
 }
 
 /* ============== AUTH ============== */
-/** >>> Само Google вход <<< */
+/** >>> Само Google вход (PKCE) <<< */
 function AuthGate({ setMe }: { setMe: (v: any) => void }) {
   const [loading, setLoad] = useState(false);
   const [err, setErr] = useState("");
@@ -115,18 +123,18 @@ function AuthGate({ setMe }: { setMe: (v: any) => void }) {
   async function signInGoogle() {
     try {
       setLoad(true); setErr("");
-      // Правилен redirect към GitHub Pages базовия път (/lovelink-mvp/)
+      // Redirect обратно към базовия път на GH Pages
       const base = import.meta.env.BASE_URL || "/";
       const redirectTo = new URL(base, window.location.origin).toString();
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo,
+          redirectTo,                       // https://<user>.github.io/lovelink-mvp/
           queryParams: { prompt: "select_account" },
         },
       });
-      if (error) throw error; // Supabase ще направи redirect
+      if (error) throw error;             // Supabase ще направи redirect
     } catch (e: any) {
       setErr(e.message || String(e));
       setLoad(false);
@@ -306,7 +314,6 @@ function GlobalChat({ roomId, me }: { roomId: string; me: any }) {
         );
       ch.subscribe();
     })();
-    return () => { stop = true; supabase.removeAllChannels(); };
   }, [roomId]);
 
   async function send() {
@@ -359,7 +366,8 @@ function Profile({ me, setMe }: { me: any; setMe: (v: any) => void }) {
   }
   async function logout() {
     await supabase.auth.signOut();
-    window.location.reload();
+    // Оставаме в приложението без да се „въртим“ между екрани
+    window.location.replace(import.meta.env.BASE_URL || "/");
   }
 
   return (
@@ -399,13 +407,6 @@ function Profile({ me, setMe }: { me: any; setMe: (v: any) => void }) {
                       className="px-4 py-2 rounded-xl bg-neutral-900 text-white">Запази</button>
             </div>
           </div>
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <button onClick={() => setFlipped(f => !f)} className="flex-1 px-4 py-3 rounded-2xl border">
-            {flipped ? "Виж предната страна" : "Редактирай"}
-          </button>
-          <button onClick={() => alert("Скоро: верификация със селфи (демо)")}
-                  className="px-4 py-3 rounded-2xl bg-emerald-500 text-white">Верифицирай</button>
         </div>
       </div>
     </div>
@@ -558,7 +559,21 @@ export default function LoveLinkMVP() {
     }
   }, []);
 
-  // 1) Вземи сесията (ако се връщаме от Google)
+  // >>> 0) Довършване на PKCE колбек (ако сме се върнали от Google)
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("code")) {
+      // разменяме кода за сесия
+      supabase.auth.exchangeCodeForSession(window.location.href).finally(() => {
+        // чистим URL-a от ?code&state
+        url.searchParams.delete("code");
+        url.searchParams.delete("state");
+        window.history.replaceState({}, "", url.toString());
+      });
+    }
+  }, []);
+
+  // 1) Вземи сесията (ако вече има такава)
   useEffect(() => {
     let mounted = true;
 
@@ -659,7 +674,7 @@ export default function LoveLinkMVP() {
       <TabBar tab={tab} setTab={setTab} coins={coins} plan={plan} />
 
       <footer className="mt-16 py-8 text-center text-xs text-neutral-500">
-        © {new Date().getFullYear()} LoveLink · Supabase · OAuth (Google) · PWA-ready
+        © {new Date().getFullYear()} LoveLink · Supabase · OAuth (Google/PKCE) · PWA-ready
       </footer>
     </div>
   );
@@ -692,7 +707,6 @@ function DirectChat({ me, peer }: { me: any; peer: any }) {
         );
       ch.subscribe();
     })();
-    return () => { stop = true; supabase.removeAllChannels(); };
   }, [roomId]);
 
   async function send() {
