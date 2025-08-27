@@ -9,7 +9,7 @@ import { createClient, Session } from "@supabase/supabase-js";
 
 /* =====================================================
    LoveLink — MVP (Supabase + PWA + OAuth Google only)
-   ВХОДЪТ Е ОПРАВЕН: PKCE + redirect към /lovelink-mvp/
+   ВХОДЪТ Е ОПРАВЕН: PKCE + exchangeCodeForSession
    ===================================================== */
 
 /** 1) Конфигурация на Supabase (ползваш твоите). */
@@ -21,7 +21,7 @@ const SUPABASE_ANON_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhemFlZ2N3ZWRxaXlhZWZrZ3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNDU3NzYsImV4cCI6MjA3MTcyMTc3Nn0.DCz7PhdKzQiOGgQwjgZ3JdOS4LfB-Bmb32VatfRsHB8";
 
-/** ВАЖНО: flowType: 'pkce' заради HashRouter/GH Pages */
+/** ВАЖНО: flowType: 'pkce' заради GH Pages/HashRouter. */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     flowType: "pkce",
@@ -115,7 +115,7 @@ function DockBtn({
 }
 
 /* ============== AUTH ============== */
-/** >>> Само Google вход (PKCE) <<< */
+/** >>> Само Google вход (PKCE) – БЕЗ redirectTo <<< */
 function AuthGate({ setMe }: { setMe: (v: any) => void }) {
   const [loading, setLoad] = useState(false);
   const [err, setErr] = useState("");
@@ -123,18 +123,12 @@ function AuthGate({ setMe }: { setMe: (v: any) => void }) {
   async function signInGoogle() {
     try {
       setLoad(true); setErr("");
-      // Redirect обратно към базовия път на GH Pages
-      const base = import.meta.env.BASE_URL || "/";
-      const redirectTo = new URL(base, window.location.origin).toString();
-
+      // Без redirectTo → Supabase ще ползва текущия URL (по-надеждно за GitHub Pages)
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo,                       // https://<user>.github.io/lovelink-mvp/
-          queryParams: { prompt: "select_account" },
-        },
+        options: { queryParams: { prompt: "select_account" } },
       });
-      if (error) throw error;             // Supabase ще направи redirect
+      if (error) throw error; // ще последва redirect
     } catch (e: any) {
       setErr(e.message || String(e));
       setLoad(false);
@@ -366,7 +360,6 @@ function Profile({ me, setMe }: { me: any; setMe: (v: any) => void }) {
   }
   async function logout() {
     await supabase.auth.signOut();
-    // Оставаме в приложението без да се „въртим“ между екрани
     window.location.replace(import.meta.env.BASE_URL || "/");
   }
 
@@ -563,9 +556,7 @@ export default function LoveLinkMVP() {
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get("code")) {
-      // разменяме кода за сесия
       supabase.auth.exchangeCodeForSession(window.location.href).finally(() => {
-        // чистим URL-a от ?code&state
         url.searchParams.delete("code");
         url.searchParams.delete("state");
         window.history.replaceState({}, "", url.toString());
