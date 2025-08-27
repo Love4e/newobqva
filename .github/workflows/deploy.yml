@@ -21,9 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      # Инсталация БЕЗ lock файл
       - name: Install (no lock file)
         run: npm install --no-audit --no-fund
 
