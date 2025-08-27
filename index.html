@@ -3,11 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Иконка и манифест: файловете са в /public -->
+    <link rel="icon" href="favicon.ico" />
     <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#ffffff" />
+
     <title>LoveLink MVP</title>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="src/main.tsx"></script>
+
+    <!-- Vite ще замени това със /lovelink-mvp/assets/*.js при билд -->
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
