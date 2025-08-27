@@ -1,6 +1,15 @@
-/* минимални стилове, за да не гърми импортът от main.tsx */
+/* Tailwind слоеве */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Минимални стилове – може да ги оставиш */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
-body { margin: 0; background: #fafafa; color: #111;
-       font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial;}
+body {
+  margin: 0;
+  background: #fafafa;
+  color: #111;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial;
+}
 button { cursor: pointer; }
