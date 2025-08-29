@@ -1,54 +1,53 @@
-'use client'
-import { useMemo, useState } from 'react'
+"use client"
+import { useState } from "react"
 
-export default function Pricing() {
-  const [currency, setCurrency] = useState<'BGN'|'EUR'>('BGN')
+export default function PricingPage() {
+  const [currency, setCurrency] = useState<"BGN" | "EUR">("BGN")
 
-  const links = useMemo(() => ({
-    sub: currency === 'BGN'
-      ? process.env.NEXT_PUBLIC_REVOLUT_LINK_SUB_BGN || process.env.REVOLUT_LINK_SUB_BGN
-      : process.env.NEXT_PUBLIC_REVOLUT_LINK_SUB_EUR || process.env.REVOLUT_LINK_SUB_EUR,
-    vip: currency === 'BGN'
-      ? process.env.NEXT_PUBLIC_REVOLUT_LINK_VIP_BGN || process.env.REVOLUT_LINK_VIP_BGN
-      : process.env.NEXT_PUBLIC_REVOLUT_LINK_VIP_EUR || process.env.REVOLUT_LINK_VIP_EUR,
-  }), [currency])
-
-  function pay(url?: string | null) {
-    if (!url) return alert('Линкът за плащане не е конфигуриран.')
-    window.open(url, '_blank')  // отваря Revolut Checkout в нов таб
+  const links = {
+    sub: currency === "BGN"
+      ? process.env.NEXT_PUBLIC_REVOLUT_LINK_SUB_BGN
+      : process.env.NEXT_PUBLIC_REVOLUT_LINK_SUB_EUR,
+    vip: currency === "BGN"
+      ? process.env.NEXT_PUBLIC_REVOLUT_LINK_VIP_BGN
+      : process.env.NEXT_PUBLIC_REVOLUT_LINK_VIP_EUR,
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <h1 className="text-2xl font-bold">Абонамент & VIP</h1>
-      <div className="mt-4 flex gap-3 items-center">
-        <label>Валута:</label>
-        <select value={currency} onChange={e=>setCurrency(e.target.value as any)} className="border rounded-md px-2 py-1">
-          <option value="BGN">BGN</option>
-          <option value="EUR">EUR</option>
-        </select>
+    <div className="max-w-2xl mx-auto py-10">
+      <h1 className="text-3xl font-bold mb-6">Абонаменти</h1>
+      <div className="flex gap-4 mb-4">
+        <button
+          onClick={() => setCurrency("BGN")}
+          className={currency === "BGN" ? "bg-blue-500 text-white px-4 py-2 rounded" : "bg-gray-200 px-4 py-2 rounded"}
+        >
+          BGN
+        </button>
+        <button
+          onClick={() => setCurrency("EUR")}
+          className={currency === "EUR" ? "bg-blue-500 text-white px-4 py-2 rounded" : "bg-gray-200 px-4 py-2 rounded"}
+        >
+          EUR
+        </button>
       </div>
 
-      <div className="mt-6 grid sm:grid-cols-2 gap-4">
-        <div className="border rounded-xl p-4 bg-white">
-          <h2 className="font-bold text-lg">Седмичен абонамент (7 дни)</h2>
-          <p className="text-sm text-slate-600">Дава право за публикуване/поддържане на обяви за 7 дни.</p>
-          <button onClick={()=>pay(links.sub)} className="mt-3 rounded-xl bg-slate-900 text-white px-4 py-2">
-            Плати (Revolut)
-          </button>
+      <div className="grid gap-6">
+        <div className="p-6 border rounded shadow">
+          <h2 className="text-xl font-semibold mb-2">Седмичен абонамент</h2>
+          <p className="mb-4">Публикувай обяви за 7 дни.</p>
+          <a href={links.sub || "#"} target="_blank" rel="noopener noreferrer">
+            <button className="bg-green-600 text-white px-6 py-2 rounded">Плати</button>
+          </a>
         </div>
-        <div className="border rounded-xl p-4 bg-white">
-          <h2 className="font-bold text-lg">VIP позиция (24 часа)</h2>
-          <p className="text-sm text-slate-600">Обявата се показва най-отгоре в секция VIP за 24 часа.</p>
-          <button onClick={()=>pay(links.vip)} className="mt-3 rounded-xl bg-slate-900 text-white px-4 py-2">
-            Плати VIP (Revolut)
-          </button>
+
+        <div className="p-6 border rounded shadow">
+          <h2 className="text-xl font-semibold mb-2">VIP Обява</h2>
+          <p className="mb-4">24 часа на първа страница.</p>
+          <a href={links.vip || "#"} target="_blank" rel="noopener noreferrer">
+            <button className="bg-yellow-600 text-white px-6 py-2 rounded">Плати</button>
+          </a>
         </div>
       </div>
-
-      <p className="mt-4 text-xs text-slate-600">
-        След като видим плащането в Revolut, администратор ще активира плана ви ръчно (7 дни / 24ч VIP).
-      </p>
-    </main>
+    </div>
   )
 }
