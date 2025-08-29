@@ -1,34 +1,33 @@
+// app/login/page.tsx
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,        // трябва да е дефиниран във Vercel
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!    // също
-)
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
 
-  async function sendLink(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setMsg(null)
     setBusy(true)
     try {
-      // За да изключим произволни разминавания, фиксираме redirect домейна:
-      const { data, error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: 'https://newobqva.vercel.app' }
+      const res = await fetch('/api/auth/magic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       })
+      const json = await res.json().catch(() => ({}))
 
-      if (error) {
-        alert(`Supabase error: ${error.message}`)
+      if (!res.ok) {
+        setMsg(json?.error || res.statusText || 'Грешка при изпращане')
         return
       }
-      alert('Изпратихме ти линк за вход. Провери пощата си.')
+      setMsg('Изпратихме ти линк за вход. Провери пощата си.')
+      setEmail('')
     } catch (err: any) {
-      alert(`Network error: ${err?.message || err}`)
+      setMsg(err?.message || 'Мрежова грешка')
     } finally {
       setBusy(false)
     }
@@ -37,27 +36,45 @@ export default function LoginPage() {
   return (
     <main className="max-w-md mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Вход</h1>
-      <form onSubmit={sendLink} className="space-y-3">
-        <input
-          type="email"
-          className="w-full border rounded-lg p-3"
-          placeholder="имейл"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm mb-1">Имейл</label>
+          <input
+            type="email"
+            className="w-full border rounded-lg p-3"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+
         <button
+          type="submit"
           disabled={busy}
           className="bg-slate-900 text-white rounded-lg px-4 py-2 disabled:opacity-50"
         >
-          Изпрати линк за вход
+          {busy ? 'Изпращаме...' : 'Изпрати линк за вход'}
         </button>
       </form>
 
-      {/* Диагностика – махни след като заработи */}
-      <div className="mt-6 text-xs text-slate-500 break-all">
-        <div><b>NEXT_PUBLIC_SUPABASE_URL:</b> {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'OK' : 'MISSING'}</div>
-        <div><b>NEXT_PUBLIC_SUPABASE_ANON_KEY:</b> {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'OK' : 'MISSING'}</div>
+      {msg && (
+        <p className="mt-4 text-sm text-slate-600">
+          {msg}
+        </p>
+      )}
+
+      {/* Диагностика – може да се махне след като всичко заработи */}
+      <div className="mt-6 text-xs text-slate-500 space-y-1">
+        <div>
+          <b>NEXT_PUBLIC_SUPABASE_URL:</b>{' '}
+          {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'OK' : 'MISSING'}
+        </div>
+        <div>
+          <b>NEXT_PUBLIC_SUPABASE_ANON_KEY:</b>{' '}
+          {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'OK' : 'MISSING'}
+        </div>
       </div>
     </main>
   )
