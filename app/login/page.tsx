@@ -1,6 +1,11 @@
 'use client'
-
 import { useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+)
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -12,21 +17,15 @@ export default function LoginPage() {
     setStatus(null)
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/magic', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectTo },
       })
-
-      const data = await res.json().catch(() => null)
-
-      if (!res.ok) {
-        setStatus(`Server error: ${data?.error || res.statusText}`)
-      } else {
-        setStatus(`OK: изпратихме линк (redirectTo: ${data?.redirectTo})`)
-      }
+      if (error) setStatus(`Supabase error: ${error.message}`)
+      else setStatus('OK: изпратихме линк за вход (провери пощата/Спам)')
     } catch (err: any) {
-      setStatus(`Fetch failed: ${err?.message || err}`)
+      setStatus(`Client error: ${err?.message || err}`)
     } finally {
       setLoading(false)
     }
@@ -44,26 +43,18 @@ export default function LoginPage() {
           placeholder="имейл"
           className="w-full rounded border px-3 py-2"
         />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded bg-indigo-600 text-white px-4 py-2 disabled:opacity-50"
-        >
+        <button type="submit" disabled={loading}
+          className="rounded bg-indigo-600 text-white px-4 py-2 disabled:opacity-50">
           {loading ? 'Изпращаме…' : 'Изпрати линк за вход'}
         </button>
       </form>
 
-      {status && (
-        <p className="mt-4 font-mono text-sm whitespace-pre-wrap">{status}</p>
-      )}
+      {status && <p className="mt-4 font-mono text-sm">{status}</p>}
 
       <div className="mt-6 text-xs opacity-70">
-        NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'OK' : 'MISSING'}
-        <br />
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'OK' : 'MISSING'}
-        <br />
-        NEXT_PUBLIC_SITE_URL:{' '}
-        {process.env.NEXT_PUBLIC_SITE_URL || '(missing)'}
+        NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'OK' : 'MISSING'}<br/>
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'OK' : 'MISSING'}<br/>
+        NEXT_PUBLIC_SITE_URL: {process.env.NEXT_PUBLIC_SITE_URL || '(missing)'}
       </div>
     </div>
   )
