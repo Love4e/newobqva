@@ -8,6 +8,20 @@ export const metadata: Metadata = {
   description:
     'Публикувай модерни обяви за секунди. Седмичен абонамент + VIP позиция. Плащане в BGN/EUR.',
   metadataBase: new URL('https://newobqva.vercel.app'),
+  // favicon (сложи /public/favicon.ico в проекта)
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+  },
+  openGraph: {
+    title: 'NovaObyava — модерни обяви',
+    description:
+      'Публикувай модерни обяви за секунди. Седмичен абонамент + VIP позиция.',
+    url: 'https://newobqva.vercel.app',
+    siteName: 'NovaObyava',
+    type: 'website',
+  },
 }
 
 export default function RootLayout({
