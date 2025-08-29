@@ -1,0 +1,1 @@
+export default function Home(){return <main><h1>NovaObyava</h1><p>Добре дошли!</p></main>}
