@@ -13,13 +13,13 @@ export default function ContactPage() {
       <form className="mt-6 max-w-lg space-y-4">
         <input
           type="text"
-          placeholder="Ангел Узунов"
+          placeholder="Петър Петров"
           className="w-full border rounded px-3 py-2"
           required
         />
         <input
           type="email"
-          placeholder="uzunov.angel@abv.bg"
+          placeholder="petar_petrov@abv.bg"
           className="w-full border rounded px-3 py-2"
           required
         />
