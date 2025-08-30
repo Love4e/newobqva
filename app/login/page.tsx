@@ -1,61 +1,48 @@
-'use client'
-import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+"use client";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-)
+import { useState } from "react";
+import { supabase } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setStatus(null)
-    setLoading(true)
-    try {
-      const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: redirectTo },
-      })
-      if (error) setStatus(`Supabase error: ${error.message}`)
-      else setStatus('OK: изпратихме линк за вход (провери пощата/Спам)')
-    } catch (err: any) {
-      setStatus(`Client error: ${err?.message || err}`)
-    } finally {
-      setLoading(false)
-    }
+  async function sendMagicLink(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setMsg(null);
+
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
+    });
+
+    setLoading(false);
+    if (error) setMsg("Грешка: " + error.message);
+    else setMsg("Изпратихме линк за вход на " + email);
   }
 
   return (
-    <div className="max-w-xl mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-6">Вход</h1>
-      <form onSubmit={onSubmit} className="space-y-4">
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="имейл"
-          className="w-full rounded border px-3 py-2"
-        />
-        <button type="submit" disabled={loading}
-          className="rounded bg-indigo-600 text-white px-4 py-2 disabled:opacity-50">
-          {loading ? 'Изпращаме…' : 'Изпрати линк за вход'}
-        </button>
-      </form>
-
-      {status && <p className="mt-4 font-mono text-sm">{status}</p>}
-
-      <div className="mt-6 text-xs opacity-70">
-        NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'OK' : 'MISSING'}<br/>
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'OK' : 'MISSING'}<br/>
-        NEXT_PUBLIC_SITE_URL: {process.env.NEXT_PUBLIC_SITE_URL || '(missing)'}
-      </div>
-    </div>
-  )
+    <form onSubmit={sendMagicLink} style={{ maxWidth: 520, margin: "40px auto" }}>
+      <h1>Вход</h1>
+      <input
+        type="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="email@domain.com"
+        style={{ width: "100%", padding: 14, borderRadius: 10, marginBottom: 12 }}
+      />
+      <button
+        disabled={loading}
+        style={{ padding: "12px 18px", borderRadius: 10, background: "#4f46e5", color: "#fff" }}
+      >
+        {loading ? "Изпращаме..." : "Изпрати линк за вход"}
+      </button>
+      {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
+    </form>
+  );
 }
