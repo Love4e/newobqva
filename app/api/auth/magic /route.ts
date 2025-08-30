@@ -5,17 +5,42 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const json = (body: any, status = 200) =>
+  new NextResponse(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+
+// Разреши preflight (ако браузърът праща OPTIONS)
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "POST,OPTIONS",
+      "access-control-allow-headers": "content-type",
+    },
+  });
+}
+
+// За дебъг – ако случайно идва GET, да видим че е GET (без 405)
+export async function GET() {
+  return json({ error: "Use POST", hint: "You called GET" }, 405);
+}
+
 export async function POST(req: Request) {
   try {
+    console.log("[/api/auth/magic] method:", req.method);
+
     const { email } = await req.json().catch(() => ({}));
     if (!email || typeof email !== "string") {
-      return NextResponse.json({ error: "Missing or invalid email" }, { status: 400 });
+      return json({ error: "Missing or invalid email" }, 400);
     }
 
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      return NextResponse.json({ error: "Supabase env vars missing" }, { status: 500 });
+      return json({ error: "Supabase env vars missing" }, 500);
     }
 
     const SITE_URL =
@@ -31,20 +56,11 @@ export async function POST(req: Request) {
       options: { shouldCreateUser: true, emailRedirectTo: `${SITE_URL}/auth/callback` },
     });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
+    if (error) return json({ error: error.message }, 400);
 
-    // ЯСЕН JSON + content-type
-    return new NextResponse(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { "content-type": "application/json; charset=utf-8" },
-    });
+    return json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Unknown error" }, { status: 500 });
+    console.error("[/api/auth/magic] server error:", e);
+    return json({ error: e?.message || "Unknown error" }, 500);
   }
-}
-
-export async function GET() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }
