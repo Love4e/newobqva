@@ -1,74 +1,48 @@
-"use client";
+// app/api/auth/magic/route.ts
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-import { useState } from "react";
+export async function POST(req: Request) {
+  try {
+    const { email } = await req.json().catch(() => ({}));
+    console.log("➡️ Получен email:", email);
 
-export default function LoginForm() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setMsg(null);
-
-    try {
-      const res = await fetch("/api/auth/magic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setMsg("Грешка: " + (data.error || "Неуспешна заявка"));
-      } else {
-        setMsg("Изпратихме линк за вход на " + email);
-      }
-    } catch (err: any) {
-      setMsg("Fetch грешка: " + err.message);
-    } finally {
-      setLoading(false);
+    if (!email) {
+      console.error("❌ Email not provided");
+      return NextResponse.json({ error: "Missing email" }, { status: 400 });
     }
+
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const SITE_URL =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+    console.log("ENV check:", {
+      SUPABASE_URL,
+      HAS_KEY: !!SUPABASE_ANON_KEY,
+      SITE_URL,
+    });
+
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${SITE_URL}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      console.error("❌ Supabase error:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    console.log("✅ Magic link изпратен на:", email);
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("❌ Server error:", e);
+    return NextResponse.json({ error: e?.message || "Unknown error" }, { status: 500 });
   }
-
-  return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: 480, margin: "60px auto" }}>
-      <h2 style={{ marginBottom: 20 }}>Вход</h2>
-
-      <input
-        type="email"
-        placeholder="Въведи имейл"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        style={{
-          width: "100%",
-          padding: "12px",
-          marginBottom: "12px",
-          borderRadius: "8px",
-          border: "1px solid #ccc",
-        }}
-      />
-
-      <button
-        type="submit"
-        disabled={loading}
-        style={{
-          width: "100%",
-          padding: "12px",
-          borderRadius: "8px",
-          background: "#4f46e5",
-          color: "white",
-          fontWeight: "bold",
-          cursor: "pointer",
-        }}
-      >
-        {loading ? "Изпращаме..." : "Изпрати линк за вход"}
-      </button>
-
-      {msg && <p style={{ marginTop: 14 }}>{msg}</p>}
-    </form>
-  );
 }
