@@ -1,3 +1,4 @@
+// app/login/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -8,7 +9,7 @@ export default function LoginPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+    e.preventDefault(); // важно: да не прави GET submit
     setLoading(true);
     setMsg(null);
 
@@ -19,9 +20,9 @@ export default function LoginPage() {
         body: JSON.stringify({ email }),
       });
 
+      // не предполагаме винаги JSON
       const ct = res.headers.get("content-type") || "";
       let data: any = null;
-
       if (ct.includes("application/json")) {
         data = await res.json().catch(() => null);
       } else {
@@ -44,24 +45,48 @@ export default function LoginPage() {
 
   return (
     <main style={{ maxWidth: 520, margin: "60px auto", textAlign: "center" }}>
-      <h1>Вход</h1>
-      <form onSubmit={handleSubmit} style={{ marginTop: 16 }}>
+      <h1 style={{ marginBottom: 20 }}>Вход</h1>
+
+      <form onSubmit={handleSubmit}>
         <input
           type="email"
           required
+          placeholder="email@domain.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="email@domain.com"
-          style={{ width: "100%", padding: 12, borderRadius: 10, marginBottom: 12 }}
+          style={{
+            width: "100%",
+            padding: 14,
+            borderRadius: 10,
+            border: "1px solid #d1d5db",
+            marginBottom: 12,
+            background: "#eef2ff",
+          }}
         />
+
         <button
+          type="submit"
           disabled={loading}
-          style={{ width: "100%", padding: 12, borderRadius: 10, background: "#4f46e5", color: "#fff" }}
+          style={{
+            width: "100%",
+            padding: 14,
+            borderRadius: 12,
+            background: "#5446f5",
+            color: "white",
+            fontWeight: 700,
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.8 : 1,
+          }}
         >
           {loading ? "Изпращаме..." : "Изпрати линк за вход"}
         </button>
       </form>
-      {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
+
+      {msg && (
+        <p style={{ marginTop: 14, color: msg.startsWith("Грешка") ? "#b91c1c" : "#111827" }}>
+          {msg}
+        </p>
+      )}
     </main>
   );
 }
