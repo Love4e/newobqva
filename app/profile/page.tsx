@@ -1,64 +1,111 @@
 // app/profile/page.tsx
-import Image from "next/image";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import ProfileClient from "./ProfileClient";
-import { createSupabaseServer } from "@/lib/supabaseServer";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
-export const revalidate = 0;
+// малък helper за форматиране на суми
+function Currency({
+  value,
+  currency = "BGN",
+}: {
+  value: number;
+  currency?: string;
+}) {
+  try {
+    return (
+      <>
+        {new Intl.NumberFormat("bg-BG", {
+          style: "currency",
+          currency,
+        }).format(value)}
+      </>
+    );
+  } catch {
+    return <>{value} {currency}</>;
+  }
+}
 
-function Currency({ value, currency = "BGN" }: { value: number; currency?: string }) {
+function SectionCard({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
-    <>
-      {new Intl.NumberFormat("bg-BG", { style: "currency", currency }).format(Number(value || 0))}
-    </>
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+        {action}
+      </div>
+      {children}
+    </div>
   );
 }
 
-export default async function ProfilePage() {
-  const supabase = createSupabaseServer();
+/** Server Action за запис на телефон */
+async function updatePhone(formData: FormData) {
+  "use server";
+  const phone = (formData.get("phone") || "").toString();
 
-  // 1) Потребител от сесията (Google OAuth)
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) {
+    redirect("/login");
+  }
 
-  const fullName =
-    (user.user_metadata?.name as string) ||
-    `${user.user_metadata?.given_name ?? ""} ${user.user_metadata?.family_name ?? ""}`.trim() ||
-    user.email;
+  await supabase
+    .from("profiles")
+    .upsert({ id: user.id, phone }, { onConflict: "id" });
 
-  const avatar =
-    (user.user_metadata?.picture as string) ||
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=6366f1&color=fff`;
+  redirect("/profile");
+}
 
-  const phone = (user.user_metadata?.phone as string) ?? null;
+export default async function ProfilePage() {
+  const supabase = await createSupabaseServerClient();
 
-  // 2) Данни от базата
-  // СЪОБРАЗИ имената/полета според твоята схема.
-  const { data: invoices } = await supabase
+  // Потребител
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Профил (телефон)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("phone")
+    .eq("id", user.id)
+    .single();
+
+  // Фактури
+  const { data: invoices = [] } = await supabase
     .from("invoices")
-    .select("id, amount, currency, pdf_url, created_at, status")
+    .select("id, created_at, amount, currency, status, pdf_url")
     .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(10);
+    .order("created_at", { ascending: false });
 
-  const { data: subscriptions } = await supabase
+  // Абонаменти
+  const { data: subscriptions = [] } = await supabase
     .from("subscriptions")
-    .select("id, plan_name, currency, price, current_period_end, active")
+    .select(
+      "id, plan_name, price, currency, current_period_end, active"
+    )
     .eq("user_id", user.id)
-    .eq("active", true)
-    .order("current_period_end", { ascending: false });
+    .order("created_at", { ascending: false });
 
-  const { data: ads } = await supabase
+  // Обяви
+  const { data: ads = [] } = await supabase
     .from("ads")
-    .select("id, title, status, price, currency, created_at, expires_at")
+    .select("id, title, status, price, currency")
     .eq("user_id", user.id)
-    .in("status", ["active", "pending"])
-    .order("created_at", { ascending: false })
-    .limit(20);
+    .order("created_at", { ascending: false });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100">
@@ -66,80 +113,104 @@ export default async function ProfilePage() {
         {/* Header */}
         <div className="mb-8 flex items-center gap-4">
           <div className="relative h-16 w-16 overflow-hidden rounded-full ring-2 ring-indigo-600/20">
-            <Image src={avatar} alt={fullName ?? "Avatar"} fill className="object-cover" />
+            {/* avatar_url идва от Google */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={user.user_metadata?.avatar_url ?? "/favicon.ico"}
+              alt={user.user_metadata?.full_name ?? "User"}
+              className="h-full w-full object-cover"
+            />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{fullName}</h1>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {user.user_metadata?.full_name ?? "Профил"}
+            </h1>
             <p className="text-slate-600">{user.email}</p>
           </div>
         </div>
 
         {/* Grid */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Left */}
-          <div className="lg:col-span-1 space-y-6">
+          {/* Лява колона */}
+          <div className="space-y-6 lg:col-span-1">
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="mb-4 text-sm font-semibold text-slate-800">Профил</h3>
+              <h3 className="mb-4 text-sm font-semibold text-slate-800">
+                Профил
+              </h3>
               <dl className="space-y-3 text-sm text-slate-700">
                 <div className="flex items-center justify-between">
                   <dt className="text-slate-500">Име</dt>
-                  <dd className="font-medium text-slate-900">{fullName}</dd>
+                  <dd className="font-medium text-slate-900">
+                    {user.user_metadata?.full_name ?? "—"}
+                  </dd>
                 </div>
                 <div className="flex items-center justify-between">
                   <dt className="text-slate-500">Имейл</dt>
-                  <dd className="font-medium text-slate-900">{user.email}</dd>
+                  <dd className="font-medium text-slate-900">
+                    {user.email}
+                  </dd>
                 </div>
                 <div className="flex items-center justify-between">
                   <dt className="text-slate-500">Провайдър</dt>
-                  <dd className="font-medium text-slate-900">
-                    {Array.isArray(user.app_metadata?.providers)
-                      ? (user.app_metadata.providers as string[]).join(", ")
-                      : user.app_metadata?.provider ?? "google"}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-slate-500">Регистрация</dt>
-                  <dd className="font-medium text-slate-900">
-                    {new Date(user.created_at!).toLocaleString("bg-BG")}
-                  </dd>
+                  <dd className="font-medium text-slate-900">Google</dd>
                 </div>
               </dl>
             </div>
 
-            {/* Редакция на телефон */}
-            <ProfileClient initialPhone={phone} />
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h4 className="mb-3 text-sm font-semibold text-slate-800">
+                Телефон
+              </h4>
+
+              <form action={updatePhone} className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  name="phone"
+                  defaultValue={profile?.phone ?? ""}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none"
+                  placeholder="+359 88 123 4567"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                  Запази
+                </button>
+              </form>
+            </div>
           </div>
 
-          {/* Right */}
-          <div className="lg:col-span-2 space-y-8">
+          {/* Дясна колона */}
+          <div className="space-y-8 lg:col-span-2">
             {/* Абонаменти */}
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900">Активни абонаменти</h3>
-                <Link href="/pricing" className="text-sm font-medium text-indigo-600 hover:underline">
-                  Вземи нов план
-                </Link>
-              </div>
-              {subscriptions && subscriptions.length ? (
+            <SectionCard title="Активни абонаменти">
+              {subscriptions.length ? (
                 <ul className="divide-y divide-slate-100">
-                  {subscriptions.map((s) => (
+                  {subscriptions.map((s: any) => (
                     <li key={s.id} className="flex items-center justify-between py-3">
                       <div>
-                        <p className="font-medium text-slate-900">{s.plan_name}</p>
+                        <p className="font-medium text-slate-900">
+                          {s.plan_name}
+                        </p>
                         <p className="text-sm text-slate-500">
                           До:{" "}
                           {s.current_period_end
-                            ? new Date(s.current_period_end as any).toLocaleString("bg-BG")
+                            ? new Date(s.current_period_end).toLocaleString("bg-BG")
                             : "—"}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-slate-900">
-                          <Currency value={Number(s.price ?? 0)} currency={s.currency || "BGN"} />
+                          <Currency value={Number(s.price || 0)} currency={s.currency || "BGN"} />
                         </p>
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                          Активен
-                        </span>
+                        {s.active ? (
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                            Активен
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                            Неактивен
+                          </span>
+                        )}
                       </div>
                     </li>
                   ))}
@@ -147,14 +218,11 @@ export default async function ProfilePage() {
               ) : (
                 <p className="text-sm text-slate-600">Нямаш активни абонаменти.</p>
               )}
-            </div>
+            </SectionCard>
 
             {/* Фактури */}
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900">Фактури и плащания</h3>
-              </div>
-              {invoices && invoices.length ? (
+            <SectionCard title="Фактури и плащания">
+              {invoices.length ? (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
@@ -167,26 +235,29 @@ export default async function ProfilePage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {invoices.map((inv, idx) => (
+                      {invoices.map((inv: any, idx: number) => (
                         <tr key={inv.id}>
                           <td className="px-0 py-3 text-slate-900">{idx + 1}</td>
                           <td className="px-4 py-3 text-slate-700">
-                            {new Date(inv.created_at as any).toLocaleString("bg-BG")}
+                            {inv.created_at
+                              ? new Date(inv.created_at).toLocaleString("bg-BG")
+                              : "—"}
                           </td>
                           <td className="px-4 py-3 font-semibold text-slate-900">
-                            <Currency value={Number(inv.amount ?? 0)} currency={inv.currency || "BGN"} />
+                            <Currency
+                              value={Number(inv.amount || 0)}
+                              currency={inv.currency || "BGN"}
+                            />
                           </td>
                           <td className="px-4 py-3">
                             <span
                               className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                                 inv.status === "paid"
                                   ? "bg-emerald-50 text-emerald-700"
-                                  : inv.status === "refunded"
-                                  ? "bg-amber-50 text-amber-700"
                                   : "bg-slate-100 text-slate-700"
                               }`}
                             >
-                              {inv.status ?? "—"}
+                              {inv.status}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -194,7 +265,7 @@ export default async function ProfilePage() {
                               <a
                                 href={inv.pdf_url}
                                 target="_blank"
-                                rel="noopener noreferrer"
+                                rel="noreferrer"
                                 className="text-indigo-600 hover:underline"
                               >
                                 PDF фактура
@@ -211,43 +282,34 @@ export default async function ProfilePage() {
               ) : (
                 <p className="text-sm text-slate-600">Нямаш налични фактури.</p>
               )}
-            </div>
+            </SectionCard>
 
             {/* Обяви */}
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900">Активни обяви</h3>
-                <Link href="/post" className="text-sm font-medium text-indigo-600 hover:underline">
-                  Нова обява
-                </Link>
-              </div>
-              {ads && ads.length ? (
+            <SectionCard title="Активни обяви">
+              {ads.length ? (
                 <ul className="divide-y divide-slate-100">
-                  {ads.map((ad) => (
+                  {ads.map((ad: any) => (
                     <li key={ad.id} className="flex items-center justify-between py-3">
                       <div>
-                        <p className="font-medium text-slate-900">{ad.title ?? `Обява ${ad.id}`}</p>
+                        <p className="font-medium text-slate-900">{ad.title}</p>
                         <p className="text-sm text-slate-500">
-                          Статус: <span className="font-medium text-slate-700">{ad.status}</span> • Създадена:{" "}
-                          {new Date(ad.created_at as any).toLocaleDateString("bg-BG")}
-                          {ad.expires_at ? (
-                            <>
-                              {" "}
-                              • До: {new Date(ad.expires_at as any).toLocaleDateString("bg-BG")}
-                            </>
-                          ) : null}
+                          Статус:{" "}
+                          <span className="font-medium text-slate-700">
+                            {ad.status}
+                          </span>
                         </p>
                       </div>
                       <div className="flex items-center gap-4">
                         <p className="font-semibold text-slate-900">
-                          <Currency value={Number(ad.price ?? 0)} currency={ad.currency || "BGN"} />
+                          <Currency value={Number(ad.price || 0)} currency={ad.currency || "BGN"} />
                         </p>
-                        <Link
-                          href={`/ads/${ad.id}`}
+                        {/* Тук по-късно можеш да вържеш към страница за редакция на обява */}
+                        <a
+                          href="#"
                           className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
                         >
                           Управление
-                        </Link>
+                        </a>
                       </div>
                     </li>
                   ))}
@@ -255,7 +317,7 @@ export default async function ProfilePage() {
               ) : (
                 <p className="text-sm text-slate-600">Нямаш активни обяви.</p>
               )}
-            </div>
+            </SectionCard>
           </div>
         </div>
       </section>
