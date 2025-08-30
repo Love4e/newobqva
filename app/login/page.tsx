@@ -5,11 +5,12 @@ import { useState } from "react";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  const sendMagicLink = async () => {
+  const sendMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    setMessage(null);
+    setMsg(null);
 
     try {
       const res = await fetch("/api/magic", {
@@ -18,38 +19,41 @@ export default function LoginPage() {
         body: JSON.stringify({ email }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
 
-      if (!res.ok) {
-        throw new Error(data.error || "Нещо се обърка");
-      }
-
-      setMessage("Изпратихме ти линк за вход на " + email);
+      setMsg(`Изпратихме линк за вход на ${email}.`);
     } catch (err: any) {
-      setMessage("Грешка: " + err.message);
+      setMsg("Грешка: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <h1 className="text-lg mb-4">Вход</h1>
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Твоят имейл"
-        className="border px-4 py-2 rounded w-80 mb-4"
-      />
-      <button
-        onClick={sendMagicLink}
-        disabled={loading}
-        className="bg-indigo-600 text-white px-6 py-2 rounded w-80"
+    <main className="min-h-screen flex items-center justify-center bg-gray-50">
+      <form
+        onSubmit={sendMagicLink}
+        className="w-full max-w-md bg-white p-6 rounded shadow space-y-4"
       >
-        {loading ? "Изпращане..." : "Изпрати линк за вход"}
-      </button>
-      {message && <p className="mt-4 text-sm">{message}</p>}
-    </div>
+        <h1 className="text-2xl font-bold text-center">Вход</h1>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="email@domain.com"
+          className="w-full border rounded px-3 py-2 bg-blue-50"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded bg-indigo-600 text-white py-3 font-semibold disabled:opacity-50"
+        >
+          {loading ? "Изпращане..." : "Изпрати линк за вход"}
+        </button>
+        {msg && <p className="text-center text-sm">{msg}</p>}
+      </form>
+    </main>
   );
 }
