@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false,
-  // ВАЖНО: НЯМА output: 'export'
-  // Може и да е празен обект: {}
+  reactStrictMode: true,
+  swcMinify: true
 };
 
 export default nextConfig;
