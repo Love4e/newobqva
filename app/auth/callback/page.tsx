@@ -11,36 +11,26 @@ const supabase = createClient(
 
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const search = useSearchParams();
   const [status, setStatus] = useState("Зареждане...");
 
   useEffect(() => {
-    const verify = async () => {
-      const code = searchParams.get("code");
+    const run = async () => {
+      const code = search.get("code");
+      if (!code) return setStatus("Невалиден линк.");
 
-      if (!code) {
-        setStatus("Невалиден линк за вход.");
-        return;
-      }
-
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-      if (error) {
-        console.error(error);
-        setStatus("Грешка при вход: " + error.message);
-        return;
-      }
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) return setStatus("Грешка: " + error.message);
 
       setStatus("Успешен вход! Пренасочване...");
       router.replace("/profile");
     };
-
-    verify();
-  }, [searchParams, router]);
+    run();
+  }, [search, router]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+    <main className="min-h-screen flex items-center justify-center">
       <p>{status}</p>
-    </div>
+    </main>
   );
 }
