@@ -14,7 +14,7 @@ export default function LoginPage() {
     setMsg(null);
 
     try {
-      const res = await fetch("/auth/magic", {               // ⬅⬅ тук без /api
+      const res = await fetch("/api/auth/magic", {   // ⬅⬅ ВАЖНО: има /api/
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -61,7 +61,11 @@ export default function LoginPage() {
           {loading ? "Изпращаме..." : "Изпрати линк за вход"}
         </button>
       </form>
-      {msg && <p style={{ marginTop: 14, color: msg.startsWith("Грешка") ? "#b91c1c" : "#111827" }}>{msg}</p>}
+      {msg && (
+        <p style={{ marginTop: 14, color: msg.startsWith("Грешка") ? "#b91c1c" : "#111827" }}>
+          {msg}
+        </p>
+      )}
     </main>
   );
 }
