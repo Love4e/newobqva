@@ -1,48 +1,74 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase-browser";
 
-export default function LoginPage() {
+export default function LoginForm() {
   const [email, setEmail] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  async function sendMagicLink(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
 
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+    try {
+      const res = await fetch("/api/auth/magic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
-    });
+      const data = await res.json();
 
-    setLoading(false);
-    if (error) setMsg("Грешка: " + error.message);
-    else setMsg("Изпратихме линк за вход на " + email);
+      if (!res.ok) {
+        setMsg("Грешка: " + (data.error || "Неуспешна заявка"));
+      } else {
+        setMsg("Изпратихме линк за вход на " + email);
+      }
+    } catch (err: any) {
+      setMsg("Fetch грешка: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <form onSubmit={sendMagicLink} style={{ maxWidth: 520, margin: "40px auto" }}>
-      <h1>Вход</h1>
+    <form onSubmit={handleSubmit} style={{ maxWidth: 480, margin: "60px auto" }}>
+      <h2 style={{ marginBottom: 20 }}>Вход</h2>
+
       <input
         type="email"
-        required
+        placeholder="Въведи имейл"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="email@domain.com"
-        style={{ width: "100%", padding: 14, borderRadius: 10, marginBottom: 12 }}
+        required
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginBottom: "12px",
+          borderRadius: "8px",
+          border: "1px solid #ccc",
+        }}
       />
+
       <button
+        type="submit"
         disabled={loading}
-        style={{ padding: "12px 18px", borderRadius: 10, background: "#4f46e5", color: "#fff" }}
+        style={{
+          width: "100%",
+          padding: "12px",
+          borderRadius: "8px",
+          background: "#4f46e5",
+          color: "white",
+          fontWeight: "bold",
+          cursor: "pointer",
+        }}
       >
         {loading ? "Изпращаме..." : "Изпрати линк за вход"}
       </button>
-      {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
+
+      {msg && <p style={{ marginTop: 14 }}>{msg}</p>}
     </form>
   );
 }
