@@ -1,64 +1,56 @@
 // app/api/auth/magic/route.ts
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-// Ако искаш, можеш да го оставиш на Node runtime (по-тих за debug)
-// export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
-function env(name: string) {
-  const v = process.env[name]
-  if (!v) throw new Error(`Missing env: ${name}`)
-  return v
-}
-
-export async function GET() {
-  // Health check – отваряш /api/auth/magic в браузъра и виждаш стойностите
-  return NextResponse.json({
-    ok: true,
-    route: '/api/auth/magic',
-    siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? '(missing)',
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'set' : '(missing)',
-  })
-}
+export const runtime = "nodejs";       // изпълнява се на Node runtime (по-надеждно за env)
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json().catch(() => ({} as any))
-    if (!email) {
-      return NextResponse.json(
-        { ok: false, error: 'Missing "email" in JSON body' },
-        { status: 400 }
-      )
+    const { email } = await req.json().catch(() => ({}));
+
+    if (!email || typeof email !== "string") {
+      return NextResponse.json({ error: "Missing or invalid email" }, { status: 400 });
     }
 
-    const supabase = createClient(
-      env('NEXT_PUBLIC_SUPABASE_URL'),
-      env('NEXT_PUBLIC_SUPABASE_ANON_KEY')
-    )
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    const redirectTo = `${env('NEXT_PUBLIC_SITE_URL')}/auth/callback`
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return NextResponse.json({ error: "Supabase env vars missing" }, { status: 500 });
+    }
 
-    const { data, error } = await supabase.auth.signInWithOtp({
+    const SITE_URL =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: redirectTo,
+        emailRedirectTo: `${SITE_URL}/auth/callback`,
       },
-    })
+    });
 
     if (error) {
-      return NextResponse.json(
-        { ok: false, step: 'signInWithOtp', error: error.message },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, redirectTo, data })
+    return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: String(e?.message || e) },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: e?.message || "Unknown error" }, { status: 500 });
   }
+}
+
+// по избор: блокирай GET, за да не се индексира
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }
