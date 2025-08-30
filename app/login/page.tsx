@@ -1,71 +1,65 @@
-// app/login/page.tsx
 "use client";
 
 import { useState } from "react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const sendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMsg(null);
+    setMessage(null);
+    setError(null);
 
     try {
-      const res = await fetch("/api/auth/magic", {   // ⬅⬅ ВАЖНО: има /api/
+      const res = await fetch("/api/magic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
-      const ct = res.headers.get("content-type") || "";
-      let data: any = null;
-      if (ct.includes("application/json")) data = await res.json().catch(() => null);
-      else {
-        const text = await res.text().catch(() => "");
-        data = text ? { message: text } : null;
-      }
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        const err = (data && (data.error || data.message)) || `HTTP ${res.status}`;
-        setMsg("Грешка: " + err);
-      } else {
-        setMsg("Изпратихме линк за вход на " + email);
+        throw new Error(data?.error || `HTTP ${res.status}`);
       }
+
+      setMessage("Изпратихме линк за вход на имейла ти.");
     } catch (err: any) {
-      setMsg("Fetch грешка: " + (err?.message || "неизвестна"));
+      setError(`Грешка: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <main style={{ maxWidth: 520, margin: "60px auto", textAlign: "center" }}>
-      <h1 style={{ marginBottom: 20 }}>Вход</h1>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          required
-          placeholder="email@domain.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ width: "100%", padding: 14, borderRadius: 10, marginBottom: 12, background: "#eef2ff" }}
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ width: "100%", padding: 14, borderRadius: 12, background: "#5446f5", color: "#fff", fontWeight: 700 }}
-        >
-          {loading ? "Изпращаме..." : "Изпрати линк за вход"}
-        </button>
-      </form>
-      {msg && (
-        <p style={{ marginTop: 14, color: msg.startsWith("Грешка") ? "#b91c1c" : "#111827" }}>
-          {msg}
-        </p>
-      )}
-    </main>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="w-full max-w-md bg-white shadow rounded p-8">
+        <h1 className="text-2xl font-bold text-center mb-6">Вход</h1>
+        <form onSubmit={sendMagicLink} className="space-y-4">
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Имейл адрес"
+            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-blue-50"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {loading ? "Изпращане..." : "Изпрати линк за вход"}
+          </button>
+        </form>
+
+        {message && <p className="mt-4 text-green-600 text-center">{message}</p>}
+        {error && <p className="mt-4 text-red-600 text-center">{error}</p>}
+      </div>
+    </div>
   );
 }
