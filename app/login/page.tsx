@@ -1,8 +1,9 @@
+// app/login/page.tsx
 "use client";
 
 import { useState } from "react";
 
-export default function LoginForm() {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -34,41 +35,43 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: 480, margin: "60px auto" }}>
-      <h2 style={{ marginBottom: 20 }}>Вход</h2>
+    <main style={{ maxWidth: 480, margin: "60px auto", textAlign: "center" }}>
+      <h1 style={{ marginBottom: 24 }}>Вход</h1>
 
-      <input
-        type="email"
-        placeholder="Въведи имейл"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        style={{
-          width: "100%",
-          padding: "12px",
-          marginBottom: "12px",
-          borderRadius: "8px",
-          border: "1px solid #ccc",
-        }}
-      />
+      <form onSubmit={handleSubmit}>
+        <input
+          type="email"
+          placeholder="Въведи имейл"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          style={{
+            width: "100%",
+            padding: "12px",
+            marginBottom: "12px",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+          }}
+        />
 
-      <button
-        type="submit"
-        disabled={loading}
-        style={{
-          width: "100%",
-          padding: "12px",
-          borderRadius: "8px",
-          background: "#4f46e5",
-          color: "white",
-          fontWeight: "bold",
-          cursor: "pointer",
-        }}
-      >
-        {loading ? "Изпращаме..." : "Изпрати линк за вход"}
-      </button>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "8px",
+            background: "#4f46e5",
+            color: "white",
+            fontWeight: "bold",
+            cursor: "pointer",
+          }}
+        >
+          {loading ? "Изпращаме..." : "Изпрати линк за вход"}
+        </button>
+      </form>
 
       {msg && <p style={{ marginTop: 14 }}>{msg}</p>}
-    </form>
+    </main>
   );
 }
