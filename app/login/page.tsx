@@ -22,10 +22,7 @@ export default function LoginPage() {
       });
 
       const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data?.error || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
 
       setMessage("Изпратихме линк за вход на имейла ти.");
     } catch (err: any) {
