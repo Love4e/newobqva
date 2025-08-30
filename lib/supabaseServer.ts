@@ -1,9 +1,10 @@
+// lib/supabaseServer.ts
 "use server";
 
 import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-export function createSupabaseServerClient() {
+export async function createSupabaseServerClient() {
   const cookieStore = cookies();
 
   const supabase = createServerClient(
@@ -15,11 +16,18 @@ export function createSupabaseServerClient() {
           return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          // Важно: сетването на куки е позволено в server actions / route handlers.
-          cookieStore.set({ name, value, ...options });
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch {
+            // в edge runtime set() може да хвърли – игнорираме
+          }
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+          try {
+            cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+          } catch {
+            // в edge runtime set() може да хвърли – игнорираме
+          }
         },
       },
     }
