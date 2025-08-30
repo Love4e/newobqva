@@ -11,7 +11,6 @@ export default function CallbackClient() {
   useEffect(() => {
     (async () => {
       try {
-        // Вземаме кода директно от window.location, без useSearchParams()
         const params = new URLSearchParams(window.location.search);
         const errorDesc = params.get("error_description");
         if (errorDesc) {
