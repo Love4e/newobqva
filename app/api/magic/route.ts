@@ -1,4 +1,3 @@
-// app/api/magic/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -24,7 +23,6 @@ export async function OPTIONS() {
   });
 }
 
-// GET fallback: /api/magic?email=...
 export async function GET(req: Request) {
   const email = new URL(req.url).searchParams.get("email");
   if (!email) return json({ error: "Use POST with { email } or GET ?email=" }, 400);
