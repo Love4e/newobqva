@@ -9,43 +9,60 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function AuthCallback() {
+export default function AuthCallbackPage() {
   const router = useRouter();
   const params = useSearchParams();
 
   useEffect(() => {
     const run = async () => {
+      const errorParam =
+        params.get("error_description") || params.get("error") || undefined;
+      if (errorParam) {
+        router.replace("/login?err=" + encodeURIComponent(errorParam));
+        return;
+      }
+
       const code = params.get("code");
       if (!code) {
         router.replace("/login?err=missing_code");
         return;
       }
 
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) {
-        router.replace("/login?err=" + encodeURIComponent(error.message));
+      // 1) Разменяме "code" за сесия
+      const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(
+        code
+      );
+      if (exchangeErr) {
+        router.replace(
+          "/login?err=" + encodeURIComponent(exchangeErr.message)
+        );
         return;
       }
 
-      // взимаме user-а
-      const { data: { user } } = await supabase.auth.getUser();
-      const email = user?.email ?? "";
+      // 2) Взимаме потребителя и проверяваме домейна
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
+      const email = user?.email ?? "";
       if (!email.endsWith("@gmail.com")) {
+        // Не е Gmail → излизаме и връщаме към login със съобщение
         await supabase.auth.signOut();
         router.replace("/login?err=only_gmail");
         return;
       }
 
-      // ако е Gmail → пускаме към началото
+      // 3) Успех → пренасочване към началото (или където искаш)
       router.replace("/");
     };
+
     run();
-  }, [params, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="h-screen flex items-center justify-center">
-      <p>Влизане...</p>
-    </div>
+    <main className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-600">Влизане…</p>
+    </main>
   );
 }
