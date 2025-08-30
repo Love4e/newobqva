@@ -21,9 +21,7 @@ function getEnv() {
 
 async function sendMagicLink(email: string) {
   const { SUPABASE_URL, SUPABASE_ANON_KEY, SITE_URL } = getEnv();
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    return { error: "Supabase env vars missing" };
-  }
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return { error: "Supabase env vars missing" };
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
@@ -34,11 +32,10 @@ async function sendMagicLink(email: string) {
     options: { shouldCreateUser: true, emailRedirectTo: `${SITE_URL}/auth/callback` },
   });
 
-  if (error) return { error: error.message };
-  return { ok: true };
+  return error ? { error: error.message } : { ok: true };
 }
 
-// --- OPTIONS (preflight) ---
+// CORS preflight
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -50,24 +47,21 @@ export async function OPTIONS() {
   });
 }
 
-// --- GET (резервен режим: /api/auth/magic?email=...) ---
+// GET fallback: /api/auth/magic?email=...
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const email = searchParams.get("email");
+  const email = new URL(req.url).searchParams.get("email");
   if (!email) return json({ error: "Use POST with { email } or GET ?email=" }, 400);
-
-  const result = await sendMagicLink(email);
-  return result.error ? json({ error: result.error }, 400) : json({ ok: true });
+  const r = await sendMagicLink(email);
+  return r.error ? json({ error: r.error }, 400) : json({ ok: true });
 }
 
-// --- POST (основният път) ---
+// POST (основният)
 export async function POST(req: Request) {
   try {
     const { email } = await req.json().catch(() => ({}));
     if (!email || typeof email !== "string") return json({ error: "Missing or invalid email" }, 400);
-
-    const result = await sendMagicLink(email);
-    return result.error ? json({ error: result.error }, 400) : json({ ok: true });
+    const r = await sendMagicLink(email);
+    return r.error ? json({ error: r.error }, 400) : json({ ok: true });
   } catch (e: any) {
     return json({ error: e?.message || "Unknown error" }, 500);
   }
