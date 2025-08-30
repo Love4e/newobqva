@@ -1,7 +1,8 @@
 {
   "name": "novaobyava",
-  "version": "1.0.0",
   "private": true,
+  "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,17 +10,20 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.45.0",
-    "next": "14.2.32",
-    "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8",
+    "nodemailer": "^6.9.13"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.15",
-    "eslint": "8.57.0",
-    "eslint-config-next": "14.2.32",
-    "postcss": "^8.4.31",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.3.3"
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.3",
+    "@types/react": "^18.3.3",
+    "@types/node": "^20.12.12"
   }
 }
