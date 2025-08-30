@@ -1,9 +1,7 @@
-// app/profile/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient, User } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,59 +9,26 @@ const supabase = createClient(
 );
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<User | null>(null);
-  const router = useRouter();
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        // ако няма логнат потребител → връщаме го към login
-        router.push("/");
-      } else {
-        setUser(user);
-      }
-    }
-    loadUser();
-  }, [router]);
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+  }, []);
 
-  async function handleLogout() {
+  async function signOut() {
     await supabase.auth.signOut();
-    router.push("/");
-  }
-
-  if (!user) {
-    return (
-      <div style={{ textAlign: "center", marginTop: "100px" }}>
-        <h1>Зареждане...</h1>
-      </div>
-    );
+    location.href = "/login";
   }
 
   return (
-    <div style={{ maxWidth: "600px", margin: "50px auto", textAlign: "center" }}>
-      <h1>Добре дошъл 👋</h1>
-      <p>
-        <strong>Email:</strong> {user.email}
-      </p>
-      <p>
-        <strong>ID:</strong> {user.id}
-      </p>
-      <button
-        onClick={handleLogout}
-        style={{
-          background: "#6366f1",
-          color: "white",
-          padding: "10px 20px",
-          borderRadius: "8px",
-          marginTop: "20px",
-          cursor: "pointer",
-        }}
-      >
-        Изход
-      </button>
-    </div>
+    <main className="min-h-screen flex items-center justify-center">
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">Профил</h1>
+        <p>{email ? `Влязъл си като: ${email}` : "Няма активна сесия."}</p>
+        <button onClick={signOut} className="bg-gray-800 text-white px-4 py-2 rounded">
+          Изход
+        </button>
+      </div>
+    </main>
   );
 }
