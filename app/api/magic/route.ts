@@ -7,12 +7,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const json = (body: any, status = 200) =>
-  new NextResponse(JSON.stringify(body), {
+function json(body: any, status: number = 200) {
+  return new NextResponse(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json; charset=utf-8" },
   });
+}
 
+// CORS preflight
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -24,31 +26,36 @@ export async function OPTIONS() {
   });
 }
 
-// GET fallback: /api/magic?email=...
+// GET fallback – /api/magic?email=...
 export async function GET(req: Request) {
   const email = new URL(req.url).searchParams.get("email");
-  if (!email) return json({ error: "Use POST with { email } or GET ?email=" }, 400);
+  if (!email) return json({ error: "Missing email" }, 400);
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` },
   });
 
-  return error ? json({ error: error.message }, 400) : json({ ok: true });
+  if (error) return json({ error: error.message }, 400);
+  return json({ ok: true });
 }
 
+// POST – { email: "..." }
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json().catch(() => ({}));
-    if (!email || typeof email !== "string") return json({ error: "Missing or invalid email" }, 400);
+    const { email } = await req.json();
+    if (!email || typeof email !== "string") {
+      return json({ error: "Missing or invalid email" }, 400);
+    }
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` },
     });
 
-    return error ? json({ error: error.message }, 400) : json({ ok: true });
-  } catch (e: any) {
-    return json({ error: e?.message || "Unknown error" }, 500);
+    if (error) return json({ error: error.message }, 400);
+    return json({ ok: true });
+  } catch (err: any) {
+    return json({ error: err.message ?? "Unknown error" }, 500);
   }
 }
