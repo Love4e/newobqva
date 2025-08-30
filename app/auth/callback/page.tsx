@@ -7,43 +7,87 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  }
 );
 
 export default function AuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState("Проверяваме връзката...");
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [message, setMessage] = useState("Проверяваме връзката...");
 
   useEffect(() => {
-    async function handleCallback() {
+    const run = async () => {
+      const errorDesc = searchParams.get("error_description");
+      if (errorDesc) {
+        setStatus("error");
+        setMessage("Грешка: " + decodeURIComponent(errorDesc));
+        return;
+      }
+
       const code = searchParams.get("code");
       if (!code) {
-        setStatus("Липсва код за вход.");
+        setStatus("error");
+        setMessage("Липсва параметър 'code' в URL.");
         return;
       }
 
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
 
       if (error) {
-        console.error(error);
-        setStatus("Грешка при входа: " + error.message);
+        setStatus("error");
+        setMessage("Грешка при входа: " + error.message);
         return;
       }
 
-      // Успешен вход → може да редиректнеш към табло, профил и т.н.
-      setStatus("Успешно влизане! Пренасочваме...");
-      setTimeout(() => {
-        router.push("/profile"); // смени с твоята страница
-      }, 1500);
-    }
+      setStatus("ok");
+      setMessage("Успешно влизане! Пренасочваме…");
 
-    handleCallback();
-  }, [searchParams, router]);
+      // сменете /profile с желаната защитена страница
+      router.replace("/profile");
+    };
+
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div style={{ textAlign: "center", marginTop: "100px" }}>
-      <h1>{status}</h1>
-    </div>
+    <main
+      style={{
+        maxWidth: 680,
+        margin: "80px auto",
+        textAlign: "center",
+        padding: "24px",
+        borderRadius: 16,
+        border: "1px solid rgba(0,0,0,0.08)",
+      }}
+    >
+      <h1 style={{ marginBottom: 12 }}>
+        {status === "loading" ? "Обработваме входа…" : status === "ok" ? "Готово" : "Възникна проблем"}
+      </h1>
+      <p>{message}</p>
+      {status === "error" && (
+        <button
+          onClick={() => router.push("/")}
+          style={{
+            marginTop: 18,
+            padding: "10px 16px",
+            borderRadius: 10,
+            background: "#4f46e5",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Към началната страница
+        </button>
+      )}
+    </main>
   );
 }
