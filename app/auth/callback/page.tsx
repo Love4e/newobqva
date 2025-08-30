@@ -1,20 +1,46 @@
-// app/auth/callback/page.tsx
-import { Suspense } from "react";
-import CallbackClient from "./CallbackClient";
+"use client";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function AuthCallbackPage() {
-  return (
-    <Suspense
-      fallback={
-        <main style={{ maxWidth: 680, margin: "80px auto", textAlign: "center" }}>
-          <h1>Зареждане…</h1>
-        </main>
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState("Зареждане...");
+
+  useEffect(() => {
+    const verify = async () => {
+      const code = searchParams.get("code");
+
+      if (!code) {
+        setStatus("Невалиден линк за вход.");
+        return;
       }
-    >
-      <CallbackClient />
-    </Suspense>
+
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (error) {
+        console.error(error);
+        setStatus("Грешка при вход: " + error.message);
+        return;
+      }
+
+      setStatus("Успешен вход! Пренасочване...");
+      router.replace("/profile");
+    };
+
+    verify();
+  }, [searchParams, router]);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+      <p>{status}</p>
+    </div>
   );
 }
